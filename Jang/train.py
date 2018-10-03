@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
-from model import Basic_CNN
+from model import _EncoderBlock
 
 
 def weights_init(m):
@@ -37,7 +37,7 @@ class Trainer(object):
         self.build_model()
 
     def build_model(self):
-        self.net = Basic_CNN(self.image_size, self.nf, self.num_classes)
+        self.net = _EncoderBlock(im_size=self.image_size, nf=self.nf)
         self.net.apply(weights_init)
         self.net.to(self.device)
 
