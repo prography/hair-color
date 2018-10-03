@@ -52,14 +52,14 @@
 
 ## 1.6 Pixel-wise softmax 구현방법
 
--------------
+
 ## 1.7  Gradient magnitude
 Second loss에 나오는 gradient magnitude의 의미를 찾고 구현 방법을 찾아보자
 
 간단한 설명은 [여기](https://donghwa-kim.github.io/hog.html)서 확인
 
 
-![Alt text](C:\Users\zmfkd\Desktop\프로그라피\염색어플 프로젝트\gradient magnitute.png)
+
 
 
 
