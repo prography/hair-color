@@ -74,4 +74,6 @@ Second loss에 나오는 gradient magnitude의 의미를 찾고 구현 방법을
 
 + Tensorflow quantization하면 float32 -> 8bit integer 가 되는데, 속도는 빨라질 것인가
 
- 
+
+***
+## 2. 안 이슈
