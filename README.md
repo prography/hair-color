@@ -76,4 +76,4 @@ Second loss에 나오는 gradient magnitude의 의미를 찾고 구현 방법을
 
 
 ***
-## 2. 안 이슈
+## 2. 안드로이드 이슈
