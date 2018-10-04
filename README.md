@@ -54,9 +54,12 @@
 
 
 ## 1.7  Gradient magnitude
-Second loss에 나오는 gradient magnitude의 의미를 찾고 구현 방법을 찾아보자
+Second loss에 나오는 gradient magnitude의 의미를 찾고 구현 방법을 찾아보자  
+Mask magnitude는 Mask라인에 겹쳐진 윤곽만 고려하도록 넣은 것으로 보임  
+M, I는 normalize됨  
+Mask edge와 Image edge가 같으면 IM == 1임으로 Loss는 0이고 Mask edge이외의 pixel은 M=0이므로 Loss가 0임  
 
-간단한 설명은 [여기](https://donghwa-kim.github.io/hog.html)서 확인
+추가적인 설명은 [여기](https://donghwa-kim.github.io/hog.html)서 확인
 
 
 
