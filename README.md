@@ -87,7 +87,7 @@ Mask edge와 Image edge가 같으면 IM == 1임으로 Loss는 0이고 Mask edge�
 
 ### 1.0 앱 진입 대기 화면(로딩)
 까만 바탕 로딩화면을 할지, 카카오톡처럼 진입 대기화면을 만들지 논의. 
-<br><img width="135" height="240" src="/Hoon/ref_00.jpg"></img><br>
+<br><img width="180" height="320" src="/Hoon/ref_00.jpg"></img><br>
 매우 짧은 시간이지만 사용자에게 앱의 이미지를 각인시키는 효과가 있는 단계. UI/UX 디자이너분께 부탁
 
 ### 1.1 앱 진입 직후(카메라)
@@ -100,7 +100,7 @@ Mask edge와 Image edge가 같으면 IM == 1임으로 Loss는 0이고 Mask edge�
 + 카메라 구동 APK 이용 (가장 깔끔한 화면)
 
 ### 1.2 사진 편집(Main)
-<img width="135" height="240" src="/Hoon/ref_01.jpg"></img><br>
+<img width="270" height="480" src="/Hoon/ref_01.jpg"></img><br>
 기본적인 구성은 이와 비슷하므로, 이미지를 참고하면서 읽으면 됨.
 화면 가운데 가장 크게 **1.1**에서 찍은 사진이 나오고
 하단에 클릭이벤트들이 다음과 같이 있음.
