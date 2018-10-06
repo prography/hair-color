@@ -1,6 +1,6 @@
  [이슈]머리 염색 어플 
 =====
-
+# 목차
 - [딥러닝 이슈](#------)
     + [1. hair image 데이터 모으는 방법](#1-hair-image-----------)
     + [2. Resolution multiplier ρ](#2-resolution-multiplier--)
