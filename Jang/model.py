@@ -58,6 +58,7 @@ class _EncoderBlock(nn.Module):
     def forward(self, x):
         out = self.layer1(x)
         out = self.layer2(out)
+        print(out.shape)
         return out
 
 class _Decoderblock(nn.Module):
