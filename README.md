@@ -1,13 +1,23 @@
-
-
  [이슈]머리 염색 어플 
 =====
 
->### 목차
-> + 딥러닝
-> + 안드로이드
-> + To be determined
-***
+- [딥러닝 이슈](#------)
+    + [1. hair image 데이터 모으는 방법](#1-hair-image-----------)
+    + [2. Resolution multiplier ρ](#2-resolution-multiplier--)
+    + [3. learning constant ε](#3-learning-constant--)
+    + [4. upsampling filter 값](#4-upsampling-filter--)
+    + [5. Skip connection 하는 방법](#5-skip-connection------)
+    + [6. Pixel-wise softmax 구현방법](#6-pixel-wise-softmax-----)
+    + [7.  Gradient magnitude](#7--gradient-magnitude)
+    + [8. Transfer learning 주의할 점](#8-transfer-learning------)
+    + [9. Tensorflow quantization의 속도 향상](#9-tensorflow-quantization-------)
+- [안드로이드 이슈](#--------)
+  * [1. 스토리보드](#1------)
+    + [1.0 앱 진입 대기 화면(로딩)](#10---------------)
+    + [1.1 앱 진입 직후(카메라)](#11-------------)
+    + [1.2 사진 편집(Main)](#12-------main-)
+
+
 #  딥러닝 이슈
 ### 1. hair image 데이터 모으는 방법
 
