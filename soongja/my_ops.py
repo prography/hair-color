@@ -1,8 +1,5 @@
 import tensorflow as tf
 
-image_summary = tf.summary.image
-scalar_summary = tf.summary.scalar
-histogram_summary = tf.summary.histogram
 merge_summary = tf.summary.merge
 SummaryWriter = tf.summary.FileWriter
 

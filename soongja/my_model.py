@@ -1,31 +1,73 @@
+import os
 import tensorflow as tf
 from my_ops import *
 
 class MobileHair(object):
-    def __init__(self, sess, input_height, input_width, batch_size, dataset,
-                 data_dir, checkpoint_dir, sample_dir, log_dir, graph_dir):
+    def __init__(self, config):
+        self.input_height = config.input_height
+        self.input_width = config.input_width
 
-        self.sess = sess
+        self.batch_size = config.batch_size
+        self.epoch = config.epoch
+        self.learning_rate = config.learning_rate
 
-        self.input_height = input_height
-        self.input_width = input_width
+        self.dataset = config.dataset
 
-        self.batch_size = batch_size
-        self.dataset = dataset
-
-        self.data_dir = data_dir
-        self.checkpoint_dir = checkpoint_dir
-        self.sample_dir = sample_dir
-        self.log_dir = log_dir
-        self.graph_dir = graph_dir
+        self.data_dir = config.data_dir
+        self.checkpoint_dir = config.checkpoint_dir
+        self.sample_dir = config.sample_dir
+        self.log_dir = config.log_dir
+        self.graph_dir = config.graph_dir
 
         self.build_model()
 
     def build_model(self):
-        self.inputs = tf.placeholder()
+        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.input_height, self.input_width, 3],
+                                     name='input_images')
+        self.logits = self.network(self.inputs)
+        self.logits_sum = tf.summary.image("logits", self.logits)
+
+        self.labels = tf.placeholder(tf.int32, [self.batch_size, self.input_height, self.input_width, 2],
+                                    name='real_masks')
+
+        reshaped_logits = tf.reshape(self.logits, [-1, 2])
+        reshaped_labels = tf.reshape(self.labels, [-1])
+
+        self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(reshaped_logits, reshaped_labels)
+        self.loss_sum = tf.summary.scalar("cross_entropy_loss", self.loss)
+
+        self.summaries = tf.summary.merge_all()
+
+        self.t_vars = tf.trainable_variables()
+
 
     def train(self):
-        pass
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
+        with tf.Session() as sess:
+            tf.train.write_graph(sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
+
+            saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
+            writer = tf.summary.FileWriter('./logs', sess.graph)
+
+            train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss,
+                                                                           var_list=self.t_vars,
+                                                                           global_step=global_step)
+
+            ckpt = tf.train.get_checkpoint_state(os.path.join(self.checkpoint_dir, timestamp))
+            if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
+                ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+                saver.restore(sess, ckpt.model_checkpoint_path)
+                print(" [*] Success to read {}".format(ckpt_name))
+            else:
+                sess.run(tf.global_variables_initializer())
+                print(" [*] Failed to find a checkpoint")
+
+            start_time = time.time()
+            for epoch in range(self.epoch):
+
+
+
+
 
     def network(self, inputs):
         with tf.variable_scope("network"):
@@ -59,4 +101,4 @@ class MobileHair(object):
 
             logits = conv2d(h23, "out_conv", 2, 1, 1)
 
-            return tf.nn.softmax(logits)
+            return logits
