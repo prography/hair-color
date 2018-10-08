@@ -26,3 +26,4 @@ def main(_):
 
     os.makedirs(self.checkpoint_dir, exist_ok=True)
     os.makedirs(self.sample_dir, exist_ok=True)
+

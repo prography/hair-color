@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 from my_ops import *
+from dataloader import Dataset
 
 class MobileHair(object):
     def __init__(self, config):
@@ -43,6 +44,9 @@ class MobileHair(object):
 
 
     def train(self):
+
+        dataset = Dataset()
+
         with tf.Session() as sess:
             # dealing with graph, checkpoint, summary
             tf.train.write_graph(sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
