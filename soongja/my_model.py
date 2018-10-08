@@ -13,11 +13,12 @@ class MobileHair(object):
 
         self.dataset = config.dataset
 
-        self.data_dir = config.data_dir
         self.checkpoint_dir = config.checkpoint_dir
-        self.sample_dir = config.sample_dir
         self.log_dir = config.log_dir
         self.graph_dir = config.graph_dir
+
+        self.data_dir = config.data_dir
+        self.sample_dir = config.sample_dir
 
         self.build_model()
 
@@ -42,18 +43,20 @@ class MobileHair(object):
 
 
     def train(self):
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
         with tf.Session() as sess:
+            # dealing with graph, checkpoint, summary
             tf.train.write_graph(sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
 
             saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
-            writer = tf.summary.FileWriter('./logs', sess.graph)
+            writer = tf.summary.FileWriter(self.log_dir, sess.graph)
+            # get_default_graph()와 sess.graph 바꿔가며 찍어보자 뭐가 다른가.
 
+            # training
             train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss,
                                                                            var_list=self.t_vars,
                                                                            global_step=global_step)
 
-            ckpt = tf.train.get_checkpoint_state(os.path.join(self.checkpoint_dir, timestamp))
+            ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
             if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
                 ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
                 saver.restore(sess, ckpt.model_checkpoint_path)
@@ -64,6 +67,7 @@ class MobileHair(object):
 
             start_time = time.time()
             for epoch in range(self.epoch):
+
 
 
 
