@@ -11,7 +11,7 @@ class _Layer_Depwise_Encode(nn.Module):
             self.stride = 1
         super(_Layer_Depwise_Encode, self).__init__()
         self.layer = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=kernel_size, stride=1, padding=1),
+            nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=kernel_size, stride=1, padding=1, groups=in_channels),
             nn.BatchNorm2d(in_channels),
             nn.ReLU6(inplace=True),
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=self.stride),
@@ -27,8 +27,8 @@ class _Layer_Depwise_Decode(nn.Module):
     def __init__(self, in_channel, out_channel, kernel_size=3,  stride=1):
         super(_Layer_Depwise_Decode, self).__init__()
         self.layer = nn.Sequential(
-            nn.Conv2d(in_channels=in_channel, out_channels=in_channel, kernel_size=kernel_size, stride=stride, padding=1),
-            nn.Conv2d(in_channels=in_channel, out_channels=out_channel, kernel_size=kernel_size, stride=stride, padding=1),
+            nn.Conv2d(in_channels=in_channel, out_channels=in_channel, kernel_size=kernel_size, stride=stride, padding=1, groups=in_channel),
+            nn.Conv2d(in_channels=in_channel, out_channels=out_channel, kernel_size=1, stride=stride, padding=1),
             nn.ReLU6(inplace=True)
         )
     def forward(self, x):
