@@ -12,11 +12,12 @@
 - [ ] Gradient magnitude 뭐지?
 - [ ] Mobilenet transfer learning 가능한가?
 - [ ] Tensorflow quantization하면 속도 향상 될까?
+- [ ] Pytorch dataloader 다시 만들기
 
 ### 데이터셋
-- 승재 드랍박스 공유폴더에 모으기
-- images/h0001.png, - masks/h0001.png
+- Dropbox: images/h0001.png, masks/h0001.png
 - 224x224. 가로세로 비율 깨지지 않게
+- 여기 아래 annotation tool site 링크 걸어주셈.
 
 ### ρ
 - MobileNet에서 나오는 ρ는 해상도를 줄여 속도를 높이는 값이다.
