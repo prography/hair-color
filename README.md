@@ -108,7 +108,7 @@ Mask edge와 Image edge가 같으면 IM == 1임으로 Loss는 0이고 Mask edge�
 + 기본 카메라
 + 카메라 선택(폰에 설치된 어플)
 	+ 푸디, 캔디캠, B612 등 선택
-+ 카메라 구동 APK 이용 (가장 깔끔한 화면)
++ 카메라 구동 AP 이용 (가장 깔끔한 화면)
 
 ### 1.2 사진 편집(Main)
 <img width="270" height="480" src="/Hoon/ref_01.jpg"></img><br>
