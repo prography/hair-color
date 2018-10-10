@@ -29,8 +29,7 @@ def conv2d(inputs, scope, num_filters, filter_size=1, strides=1):
 
 def upsample_with_addition(inputs, incoming_enc_layers, scope, num_filters):
     with tf.variable_scope(scope):
-        upsampled = tf.image.resize_images(inputs, size=[inputs.get_shape()[1] * 2, inputs.get_shape()[2] * 2],
-                                          method=ResizeMethod.NEAREST_NEIGHBOR)
+        upsampled = tf.image.resize_nearest_neighbor(inputs, size=[inputs.get_shape()[1] * 2, inputs.get_shape()[2] * 2])
         # align_corners=True는 linear, bilinear등에서만 효과있다.
 
         w = tf.get_variable('w', [1, 1, incoming_enc_layers.get_shape()[-1], num_filters],
@@ -42,9 +41,7 @@ def upsample_with_addition(inputs, incoming_enc_layers, scope, num_filters):
 
 def upsample_only(inputs, scope):
     with tf.variable_scope(scope):
-        return tf.image.resize_images(inputs, size=[inputs.get_shape()[1] * 2, inputs.get_shape()[2] * 2],
-                                      method=ResizeMethod.NEAREST_NEIGHBOR)
-
+        return tf.image.resize_nearest_neighbor(inputs, size=[inputs.get_shape()[1] * 2, inputs.get_shape()[2] * 2])
 
 def depthwise_seperable_conv2d(inputs, scope, num_filters, downsample=False, is_training=True):
 

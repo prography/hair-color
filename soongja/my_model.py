@@ -1,8 +1,10 @@
 import os
+import time
+import numpy as np
 import tensorflow as tf
 from my_ops import *
 from my_dataloader import DataLoader
-from my_utils import *
+from my_utils import draw_results
 
 class MobileHair(object):
     def __init__(self, config):
@@ -13,38 +15,34 @@ class MobileHair(object):
         self.epoch = config.epoch
         self.learning_rate = config.learning_rate
 
-        self.dataset = config.dataset
-        self.train_test_ratio = config.train_test_ratio
-
-        self.checkpoint_dir = config.checkpoint_dir
-        self.log_dir = config.log_dir
-        self.graph_dir = config.graph_dir
-
         self.data_dir = config.data_dir
+        self.graph_dir = config.graph_dir
+        self.log_dir = config.log_dir
+        self.checkpoint_dir = config.checkpoint_dir
         self.sample_dir = config.sample_dir
+
+        self.checkpoint_step = config.checkpoint_step
 
         self.build_model()
 
     def build_model(self):
-        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.input_height, self.input_width, 3],
-                                     name='inputs')
+        self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='inputs')
         self.logits = self.network(self.inputs)
-        tf.summary.image("logits image", self.logits)
+        # tf.summary.image("logits image", self.logits)
         tf.summary.histogram("logits histogram", self.logits)
 
-        labels = tf.placeholder(tf.int32, [self.batch_size, self.input_height, self.input_width, 1],
-                                    name='labels')
+        self.labels = tf.placeholder(tf.int64, [None, self.input_height, self.input_width, 1], name='labels')
 
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
-        reshaped_labels = tf.reshape(self.labels, [-1])
+        reshaped_labels = tf.cast(tf.reshape(self.labels, [-1]) / 255, tf.int64)
 
-        self.loss_op = tf.nn.sparse_softmax_cross_entropy_with_logits(reshaped_logits, reshaped_labels)
-        tf.summary.scalar("loss", self.loss)
+        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=reshaped_logits, labels=reshaped_labels)
+        self.loss_op = tf.reduce_mean(cross_entropy, name='cross_entropy_mean')
+        tf.summary.scalar("loss", self.loss_op)
 
         self.summary_op = tf.summary.merge_all()
 
         # self.t_vars = tf.trainable_variables()
-
 
     def train(self):
 
@@ -56,12 +54,11 @@ class MobileHair(object):
 
         dataset = DataLoader(image_paths=image_paths,
                              mask_paths=mask_paths,
-                             image_extension=self.image_extension,
                              image_size=(self.input_height, self.input_width),
                              channels=(3, 1),
-                             num_test=10,
+                             num_test=12,
                              crop_size=None,
-                             palette=None,
+                             palette=(0, 255),
                              seed=777)
 
         with tf.Session() as sess:
@@ -75,20 +72,20 @@ class MobileHair(object):
             global_step = tf.train.get_or_create_global_step(sess.graph)
             train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss_op, global_step=global_step)
 
+            sess.run(tf.global_variables_initializer())
+
             ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
             if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
-                ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
                 saver.restore(sess, ckpt.model_checkpoint_path)
-                print(" [*] Success to read {}".format(ckpt_name))
+                print(" [*] Success to read {}".format(ckpt.model_checkpoint_path))
             else:
-                sess.run(tf.global_variables_initializer())
+                # sess.run(tf.global_variables_initializer())
                 print(" [*] Failed to find a checkpoint")
 
-            next_batch, init_op = dataset.data_batch(train=True,
-                                               shuffle=True,
-                                               augment=False,
-                                               one_hot_encode=False,
-                                               batch_size=self.batch_size)
+            next_batch, init_op = dataset.train_batch(shuffle=True,
+                                                   augment=False,
+                                                   one_hot_encode=False,
+                                                   batch_size=self.batch_size)
             sess.run(init_op)
 
             start_time = time.time()
@@ -96,7 +93,6 @@ class MobileHair(object):
                 batch_idxs = (len(dataset.train_image_paths) // self.batch_size) + 1
                 for idx in range(batch_idxs):
                     images, masks = sess.run(next_batch)
-
                     _, step_loss, step_summary = sess.run([train_op, self.loss_op, self.summary_op],
                                                           feed_dict={self.inputs: images, self.labels: masks})
 
@@ -110,12 +106,32 @@ class MobileHair(object):
                         saver.save(sess, os.path.join(self.checkpoint_dir, 'MobileHair'),
                                    global_step=sess.run(global_step))
 
-                        test_images ,test_masks = sess.run(dataset.test_set)
-                        outputs = sess.run(self.logits, feed_dict={self.inputs: test_images})
+                        # test
+                        test_batch, test_init_op = dataset.test_batch()
+                        sess.run(test_init_op)
+                        test_images, test_masks = sess.run(test_batch)
 
-                        draw_results(test_images, test_masks, outputs, idx, self.sample_dir)
+                        # print(tf.shape(test_images))
+                        # print(tf.shape(test_masks))
+
+
+                        # test_images = np.multiply(test_images, 1.0 / 255)
+
+                        test_images = test_images * 1.0 / 255
+
+                        preds = sess.run(self.logits, feed_dict={self.inputs: test_images})
+                        test_images = tf.reshape(test_images, (-1, self.input_height, self.input_width, 3))
+                        test_masks = tf.reshape(test_masks, (-1, self.input_height, self.input_width, 1))
+                        preds = tf.argmax(preds, axis=3)
+                        print(preds)
+                        # pred_masks = np.reshape(preds, (-1, self.input_height, self.input_width, 1))
+                        pred_masks = tf.expand_dims(preds, 3)
+                        print(tf.shape(test_images))
+                        print(tf.shape(test_masks))
+                        print(tf.shape(pred_masks))
+
+                        draw_results(test_images, test_masks, pred_masks, idx, self.sample_dir)
                         print(" [*] Saved checkpoint and test samples")
-
 
     def network(self, inputs):
         with tf.variable_scope("network"):
@@ -126,7 +142,7 @@ class MobileHair(object):
             h3 = depthwise_seperable_conv2d(h2, "ds_conv3", 128)
             h4 = depthwise_seperable_conv2d(h3, "ds_conv4", 256, downsample=True)
             h5 = depthwise_seperable_conv2d(h4, "ds_conv5", 256)
-            h6 = depthwise_seperable_conv2d(h5, "ds_conv6", 512)
+            h6 = depthwise_seperable_conv2d(h5, "ds_conv6", 512, downsample=True)
             h7 = depthwise_seperable_conv2d(h6, "ds_conv7", 512)
             h8 = depthwise_seperable_conv2d(h7, "ds_conv8", 512)
             h9 = depthwise_seperable_conv2d(h8, "ds_conv9", 512)
@@ -138,6 +154,7 @@ class MobileHair(object):
             # Decoder blocks
             h14 = upsample_with_addition(h13, h11, "up1", 1024)
             h15 = inv_depthwise_seperable_conv2d(h14, "inv_ds_conv1", 64)
+            print(h15.get_shape(), h5.get_shape())
             h16 = upsample_with_addition(h15, h5, "up2", 64)
             h17 = inv_depthwise_seperable_conv2d(h16, "inv_ds_conv2", 64)
             h18 = upsample_with_addition(h17, h3, "up3", 64)

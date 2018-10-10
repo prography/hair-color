@@ -1,1 +1,6 @@
-segxyhand
+__pycache__
+dataset
+checkpoints
+samples
+logs
+graphs

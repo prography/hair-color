@@ -4,7 +4,7 @@ import random
 
 class DataLoader(object):
     def __init__(self, image_paths, mask_paths, image_extension='png', image_size=(256, 256),
-                 channels=(3, 1), num_test=10, crop_size=None, palette=None, seed=None):
+                 channels=(3, 1), num_test=12, crop_size=None, palette=None, seed=None):
         """
         Initializes the data loader object
         Args:
@@ -33,6 +33,7 @@ class DataLoader(object):
             seed: An int, if not specified, chosen randomly. Used as the seed for the RNG in the
                   data pipeline.
         """
+        self.num_test = num_test
         self.train_image_paths, self.test_image_paths = self.train_test_split(image_paths, num_test)
         self.train_mask_paths, self.test_mask_paths = self.train_test_split(mask_paths, num_test)
 
@@ -166,7 +167,7 @@ class DataLoader(object):
 
         return image, one_hot_map
 
-    def data_batch(self, shuffle=True, augment=False, one_hot_encode=False, batch_size=4, num_threads=1, buffer=30):
+    def train_batch(self, shuffle=True, augment=False, one_hot_encode=False, batch_size=4, num_threads=1, buffer=30):
         """
         Reads data, normalizes it, shuffles it, then batches it, returns a
         the next element in dataset op and the dataset initializer op.
@@ -247,7 +248,7 @@ class DataLoader(object):
 
         return next_element, init_op
 
-    def test_set(self):
+    def test_batch(self, num_threads=1, buffer=30):
         images_name_tensor = tf.constant(self.test_image_paths)
         mask_name_tensor = tf.constant(self.test_mask_paths)
 
@@ -259,4 +260,30 @@ class DataLoader(object):
 
         data = data.map(self._resize_data, num_parallel_calls=num_threads).prefetch(buffer)
 
-        return data
+        data = data.batch(self.num_test)
+
+        iterator = tf.data.Iterator.from_structure(
+            data.output_types, data.output_shapes)
+
+        next_element = iterator.get_next()
+
+        init_op = iterator.make_initializer(data)
+
+        return next_element, init_op
+
+'''
+    def test_set(self):
+        test_images = []
+        test_masks = []
+
+        for file in self.test_image_paths:
+        test_image = np.array(cv2.imread(input_image, 0))  # load grayscale
+        # test_image = np.multiply(test_image, 1.0 / 255)
+        inputs.append(test_image)
+
+        target_image = cv2.imread(target_image, 0)
+        target_image = cv2.threshold(target_image, 127, 1, cv2.THRESH_BINARY)[1]
+        targets.append(target_image)
+
+        return np.array(self.test_inputs, dtype=np.uint8), np.array(self.test_targets, dtype=np.uint8)
+'''
