@@ -1,7 +1,8 @@
 import os
 import tensorflow as tf
 from my_ops import *
-from dataloader import Dataset
+from my_dataloader import DataLoader
+from my_utils import *
 
 class MobileHair(object):
     def __init__(self, config):
@@ -13,6 +14,7 @@ class MobileHair(object):
         self.learning_rate = config.learning_rate
 
         self.dataset = config.dataset
+        self.train_test_ratio = config.train_test_ratio
 
         self.checkpoint_dir = config.checkpoint_dir
         self.log_dir = config.log_dir
@@ -25,40 +27,53 @@ class MobileHair(object):
 
     def build_model(self):
         self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.input_height, self.input_width, 3],
-                                     name='input_images')
+                                     name='inputs')
         self.logits = self.network(self.inputs)
-        self.logits_sum = tf.summary.image("logits", self.logits)
+        tf.summary.image("logits image", self.logits)
+        tf.summary.histogram("logits histogram", self.logits)
 
-        self.labels = tf.placeholder(tf.int32, [self.batch_size, self.input_height, self.input_width, 2],
-                                    name='real_masks')
+        labels = tf.placeholder(tf.int32, [self.batch_size, self.input_height, self.input_width, 1],
+                                    name='labels')
 
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
         reshaped_labels = tf.reshape(self.labels, [-1])
 
-        self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(reshaped_logits, reshaped_labels)
-        self.loss_sum = tf.summary.scalar("cross_entropy_loss", self.loss)
+        self.loss_op = tf.nn.sparse_softmax_cross_entropy_with_logits(reshaped_logits, reshaped_labels)
+        tf.summary.scalar("loss", self.loss)
 
-        self.summaries = tf.summary.merge_all()
+        self.summary_op = tf.summary.merge_all()
 
-        self.t_vars = tf.trainable_variables()
+        # self.t_vars = tf.trainable_variables()
 
 
     def train(self):
 
-        dataset = Dataset()
+        IMAGE_DIR_PATH = os.path.join(self.data_dir, 'images')
+        MASK_DIR_PATH = os.path.join(self.data_dir, 'masks')
+
+        image_paths = [os.path.join(IMAGE_DIR_PATH, x) for x in os.listdir(IMAGE_DIR_PATH) if x.endswith('.png')]
+        mask_paths = [os.path.join(MASK_DIR_PATH, x) for x in os.listdir(MASK_DIR_PATH) if x.endswith('.png')]
+
+        dataset = DataLoader(image_paths=image_paths,
+                             mask_paths=mask_paths,
+                             image_extension=self.image_extension,
+                             image_size=(self.input_height, self.input_width),
+                             channels=(3, 1),
+                             num_test=10,
+                             crop_size=None,
+                             palette=None,
+                             seed=777)
 
         with tf.Session() as sess:
-            # dealing with graph, checkpoint, summary
             tf.train.write_graph(sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
 
             saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
+
             writer = tf.summary.FileWriter(self.log_dir, sess.graph)
             # get_default_graph()와 sess.graph 바꿔가며 찍어보자 뭐가 다른가.
 
-            # training
-            train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss,
-                                                                           var_list=self.t_vars,
-                                                                           global_step=global_step)
+            global_step = tf.train.get_or_create_global_step(sess.graph)
+            train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss_op, global_step=global_step)
 
             ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
             if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
@@ -69,12 +84,37 @@ class MobileHair(object):
                 sess.run(tf.global_variables_initializer())
                 print(" [*] Failed to find a checkpoint")
 
+            next_batch, init_op = dataset.data_batch(train=True,
+                                               shuffle=True,
+                                               augment=False,
+                                               one_hot_encode=False,
+                                               batch_size=self.batch_size)
+            sess.run(init_op)
+
             start_time = time.time()
             for epoch in range(self.epoch):
+                batch_idxs = (len(dataset.train_image_paths) // self.batch_size) + 1
+                for idx in range(batch_idxs):
+                    images, masks = sess.run(next_batch)
 
+                    _, step_loss, step_summary = sess.run([train_op, self.loss_op, self.summary_op],
+                                                          feed_dict={self.inputs: images, self.labels: masks})
 
+                    writer.add_summary(step_summary, global_step=sess.run(global_step))
+                    print("Epoch: [%2d/%2d] [%4d/%4d] time: %4.4f, loss: %.8f"
+                          % (epoch, self.epoch, idx, batch_idxs, time.time() - start_time, step_loss))
 
+                    # save checkpoint
+                    # test
+                    if idx % self.checkpoint_step == 0 or idx == batch_idx - 1:
+                        saver.save(sess, os.path.join(self.checkpoint_dir, 'MobileHair'),
+                                   global_step=sess.run(global_step))
 
+                        test_images ,test_masks = sess.run(dataset.test_set)
+                        outputs = sess.run(self.logits, feed_dict={self.inputs: test_images})
+
+                        draw_results(test_images, test_masks, outputs, idx, self.sample_dir)
+                        print(" [*] Saved checkpoint and test samples")
 
 
     def network(self, inputs):

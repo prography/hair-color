@@ -1,8 +1,5 @@
 import tensorflow as tf
 
-merge_summary = tf.summary.merge
-SummaryWriter = tf.summary.FileWriter
-
 
 def batch_norm(inputs, scope, epsilon=1e-5, momentum=0.99, is_training=True):
     with tf.variable_scope(scope):

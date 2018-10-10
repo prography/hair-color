@@ -1,10 +1,11 @@
 import tensorflow as tf
+from my_model import MobileHair
 
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
 flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
-flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
-flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
+# flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
+flags.DEFINE_integer("batch_size", 16, "The size of batch images [16]")
 flags.DEFINE_integer("input_height", 128, "The size of image to use. [128]")
 flags.DEFINE_integer("input_width", 128, "The size of image to use. [128]")
 flags.DEFINE_integer("output_height", 64, "The size of the output images to produce [64]")
