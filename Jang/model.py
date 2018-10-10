@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from config import get_config
+import torch.nn.functional as F
 
 config = get_config()
 
@@ -28,17 +29,17 @@ class _Layer_Depwise_Decode(nn.Module):
         super(_Layer_Depwise_Decode, self).__init__()
         self.layer = nn.Sequential(
             nn.Conv2d(in_channels=in_channel, out_channels=in_channel, kernel_size=kernel_size, stride=stride, padding=1, groups=in_channel),
-            nn.Conv2d(in_channels=in_channel, out_channels=out_channel, kernel_size=1, stride=stride, padding=1),
+            nn.Conv2d(in_channels=in_channel, out_channels=out_channel, kernel_size=1, stride=stride),
             nn.ReLU6(inplace=True)
         )
     def forward(self, x):
         out = self.layer(x)
         return out
 
-class MovileMatNet(nn.Module):
+class MobileMatNet(nn.Module):
     def __init__(self, im_size=224, nf=32, kernel_size=3):
         self.nf = nf
-        super(MovileMatNet, self).__init__()
+        super(MobileMatNet, self).__init__()
 
 #######################################################################################################################
 #                                                                                                                     #
@@ -98,6 +99,7 @@ class MovileMatNet(nn.Module):
         self.encode_to_decoder3 = nn.Conv2d(in_channels=8 * self.nf, out_channels=2 * self.nf, kernel_size=1)
         self.encode_to_decoder2 = nn.Conv2d(in_channels=4 * self.nf, out_channels=2 * self.nf, kernel_size=1)
         self.encode_to_decoder1 = nn.Conv2d(in_channels=2 * self.nf, out_channels=2 * self.nf, kernel_size=1)
+        self.soft_max = nn.Softmax(dim=1)
     def forward(self, x):
 #connet encode 4-> decode 1, encode 3-> decode 2, encode 2-> decode 3, encode 1-> decode 4
         encode_layer1 = self.encode_layer1(x)
@@ -116,5 +118,5 @@ class MovileMatNet(nn.Module):
         decode_layer3 = torch.add(self.decode_layer3(decode_layer2), encode_layer2)
         decode_layer4 = torch.add(self.decode_layer4(decode_layer3), encode_layer1)
         decode_layer5 = self.decode_layer5(decode_layer4)
-        out = nn.Softmax(decode_layer5)
+        out = self.soft_max(decode_layer5)
         return out
