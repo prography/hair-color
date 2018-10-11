@@ -52,7 +52,7 @@ class DataLoader(object):
         """
         Splits
         """
-        return paths[:num_test], paths[num_test:]
+        return paths[:-num_test], paths[-num_test:]
 
     def _corrupt_brightness(self, image, mask):
         """
@@ -237,47 +237,28 @@ class DataLoader(object):
             data = data.shuffle(buffer)
 
         # Create iterator
-        iterator = tf.data.Iterator.from_structure(
-            data.output_types, data.output_shapes)
+        # iterator = tf.data.Iterator.from_structure(
+        #     data.output_types, data.output_shapes)
+
+        iterator = data.make_one_shot_iterator()
 
         # Next element Op
-        next_element = iterator.get_next()
+        image, mask = iterator.get_next()
 
         # Data set init. op
-        init_op = iterator.make_initializer(data)
+        # init_op = iterator.make_initializer(data)
 
-        return next_element, init_op
+        return image, mask
 
-    def test_batch(self, num_threads=1, buffer=30):
-        images_name_tensor = tf.constant(self.test_image_paths)
-        mask_name_tensor = tf.constant(self.test_mask_paths)
+    def load_test_data(self):
+        for test_image_path in self.test_image_paths:
+            img = misc.imread(test_image_path, mode='RGB')
+            img = np.expand_dims(img, axis=0)
+            img
 
-        data = tf.data.Dataset.from_tensor_slices(
-            (images_name_tensor, mask_name_tensor))
-
-        data = data.map(
-            self._parse_data, num_parallel_calls=num_threads).prefetch(buffer)
-
-        data = data.map(self._resize_data, num_parallel_calls=num_threads).prefetch(buffer)
-
-        data = data.batch(self.num_test)
-
-        iterator = tf.data.Iterator.from_structure(
-            data.output_types, data.output_shapes)
-
-        next_element = iterator.get_next()
-
-        init_op = iterator.make_initializer(data)
-
-        return next_element, init_op
-
-'''
-    def test_set(self):
-        test_images = []
-        test_masks = []
 
         for file in self.test_image_paths:
-        test_image = np.array(cv2.imread(input_image, 0))  # load grayscale
+            test_image = np.array(cv2.imread(input_image, 0))  # load grayscale
         # test_image = np.multiply(test_image, 1.0 / 255)
         inputs.append(test_image)
 
@@ -286,4 +267,3 @@ class DataLoader(object):
         targets.append(target_image)
 
         return np.array(self.test_inputs, dtype=np.uint8), np.array(self.test_targets, dtype=np.uint8)
-'''

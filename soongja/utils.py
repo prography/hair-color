@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
+
 def draw_results(test_inputs, test_targets, test_segmentation, batch_num, sample_dir):
     n_examples_to_plot = 12
     fig, axs = plt.subplots(4, n_examples_to_plot, figsize=(n_examples_to_plot * 3, 10))
