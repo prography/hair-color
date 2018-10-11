@@ -12,4 +12,5 @@
 - [ ] ppprinter 걍 지울까
 - [ ] more refactoring
 - [ ] 논문이랑 hyperparams 맞추
-- [ ] conv2d에 L2 regularizer 
+- [ ] conv2d에 L2 regularizer 추가
+- [ ] input image와 label 노말라이즈, 스케일 어떻게 되었는지 정확히 
