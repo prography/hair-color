@@ -12,3 +12,4 @@
 - [ ] ppprinter 걍 지울까
 - [ ] more refactoring
 - [ ] 논문이랑 hyperparams 맞추
+- [ ] conv2d에 L2 regularizer 
