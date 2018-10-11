@@ -45,14 +45,23 @@ class MobileHair(object):
 
         self.iterator, self.n_batches = dataloader.train_batch(shuffle=True, augment=False, one_hot_encode=False,
                                                                batch_size=self.batch_size, num_threads=1, buffer=30)
+
         self.images, self.masks = self.iterator.get_next()
+        self.sess.run(self.iterator.initializer)
+        print(self.images)
+        print(self.sess.run(self.images))
+
+        # print(self.masks)
+        # print(self.sess.run(self.masks[0, 112, 112 ,0]))
 
         """ Logits """
         # self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='inputs')
         # self.labels = tf.placeholder(tf.int64, [None, self.input_height, self.input_width, 1], name='labels')
 
         self.logits = self.network(self.images)
-        self.preds = tf.expand_dims(tf.cast(tf.argmax(self.logits, axis=3), tf.uint8), 3)
+
+        # tf.summary.image can only receive uint8 or float32 tensors
+        self.preds = tf.expand_dims(tf.cast(tf.argmax(self.logits, axis=3) * 255, tf.uint8), 3)
 
         """ Loss """
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
@@ -63,7 +72,8 @@ class MobileHair(object):
 
         """ Training """
         t_vars = tf.trainable_variables()
-        self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss_op, var_list=t_vars)
+        optim = tf.train.AdadeltaOptimizer(self.learning_rate, rho=0.95, epsilon=1e-07)
+        self.train_op = optim.minimize(self.loss_op, var_list=t_vars)
 
         """ Summary """
         tf.summary.image("pred_masks", self.preds, max_outputs=1)

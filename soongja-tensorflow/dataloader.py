@@ -114,8 +114,11 @@ class DataLoader(object):
         """
         Normalize image and mask within range 0-1.
         """
-        image = tf.cast(image, tf.float32)
+        # image = tf.cast(image, tf.float32)
         image = image / 255.0
+
+        mask = mask / 255
+        mask = tf.cast(mask, tf.uint8)
 
         return image, mask
 
