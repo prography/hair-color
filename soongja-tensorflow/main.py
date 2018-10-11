@@ -5,11 +5,11 @@ from model import MobileHair
 from utils import show_all_variables
 
 flags = tf.app.flags
-flags.DEFINE_integer("input_height", 256, "The height of input image. []")
-flags.DEFINE_integer("input_width", 256, "The width of input image. []")
-flags.DEFINE_integer("batch_size", 1, "The size of image batches []")
+flags.DEFINE_integer("input_height", 224, "The height of input image. []")
+flags.DEFINE_integer("input_width", 224, "The width of input image. []")
+flags.DEFINE_integer("batch_size", 4, "The size of image batches. Must be smaller than # of train images []")
 flags.DEFINE_integer("epoch", 25, "Epochs to train []")
-flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
+flags.DEFINE_float("learning_rate", 0.001, "Learning rate of for adam [0.0002]")
 flags.DEFINE_string("graph_dir", "graphs", "Directory name to save graphs []")
 flags.DEFINE_string("log_dir", "logs", "Directory name to save tensorboard summaries []")
 flags.DEFINE_string("checkpoint_dir", "checkpoints", "Directory name to save checkpoints []")
@@ -34,6 +34,7 @@ def main(_):
 
     with tf.Session(config=run_config) as sess:
         net = MobileHair(sess, FLAGS)
+
         show_all_variables()
 
         net.train()

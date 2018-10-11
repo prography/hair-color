@@ -32,8 +32,7 @@ class MobileHair(object):
         self.build_model()
 
     def build_model(self):
-        # self.lr = tf.placeholder(tf.float32, name='learning_rate')
-
+        """ """
         """ Input Image """
         IMAGE_DIR_PATH = os.path.join(self.data_dir, 'images')
         MASK_DIR_PATH = os.path.join(self.data_dir, 'masks')
@@ -41,34 +40,24 @@ class MobileHair(object):
         image_paths = [os.path.join(IMAGE_DIR_PATH, x) for x in os.listdir(IMAGE_DIR_PATH) if x.endswith('.png')]
         mask_paths = [os.path.join(MASK_DIR_PATH, x) for x in os.listdir(MASK_DIR_PATH) if x.endswith('.png')]
 
-        self.Dataloader_Class = DataLoader(image_paths=image_paths,
-                                      mask_paths=mask_paths,
-                                      image_size=(self.input_height, self.input_width),
-                                      channels=(3, 1),
-                                      num_test=12,
-                                      crop_size=None,
-                                      palette=(0, 255),
-                                      seed=777)
+        dataloader = DataLoader(image_paths=image_paths, mask_paths=mask_paths, image_extension='png',
+                                image_size=(self.input_height, self.input_width), channels=(3, 1), num_test=1100)
 
-        self.images, self.masks = self.Dataloader_Class.train_batch(shuffle=True,
-                                                                         augment=False,
-                                                                         one_hot_encode=False,
-                                                                         batch_size=self.batch_size)
-        print(self.images, self.masks)
+        self.iterator, self.n_batches = dataloader.train_batch(shuffle=True, augment=False, one_hot_encode=False,
+                                                               batch_size=self.batch_size, num_threads=1, buffer=30)
+        self.images, self.masks = self.iterator.get_next()
 
         """ Logits """
         # self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='inputs')
         # self.labels = tf.placeholder(tf.int64, [None, self.input_height, self.input_width, 1], name='labels')
 
         self.logits = self.network(self.images)
-        # tf.summary.image("logits image", self.logits)
+        self.preds = tf.expand_dims(tf.cast(tf.argmax(self.logits, axis=3), tf.uint8), 3)
 
+        """ Loss """
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
         reshaped_labels = tf.cast(tf.reshape(self.masks, [-1]) / 255, tf.int64)
 
-        self.pred_masks = tf.expand_dims(tf.cast(tf.argmax(self.logits, axis=3), tf.uint8), 3)
-
-        """ Loss """
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=reshaped_logits, labels=reshaped_labels)
         self.loss_op = tf.reduce_mean(cross_entropy, name='cross_entropy_mean')
 
@@ -77,8 +66,8 @@ class MobileHair(object):
         self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss_op, var_list=t_vars)
 
         """ Summary """
-        tf.summary.image("pred_masks", self.pred_masks)
-        tf.summary.image("real_masks", self.masks)
+        tf.summary.image("pred_masks", self.preds, max_outputs=1)
+        tf.summary.image("real_masks", self.masks, max_outputs=1)
         tf.summary.scalar("loss", self.loss_op)
         self.summary_op = tf.summary.merge_all()
 
@@ -86,11 +75,11 @@ class MobileHair(object):
         tf.global_variables_initializer().run()
 
         tf.train.write_graph(self.sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
-        saver = tf.train.Saver(max_to_keep=5) # 왜 tf.global_variables() 안쓰지
+
         writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir(), self.sess.graph)
         # get_default_graph()와 sess.graph 바꿔가며 찍어보자 뭐가 다른가.
 
-        # global_step = tf.train.get_or_create_global_step(sess.graph)
+        self.saver = tf.train.Saver(max_to_keep=5) # 왜 tf.global_variables() 안쓰지
 
         counter = 1
         could_load, checkpoint_counter = self.load(self.checkpoint_dir)
@@ -102,31 +91,25 @@ class MobileHair(object):
 
         start_time = time.time()
         for epoch in range(self.epoch):
-            batch_idxs = (len(self.Dataloader_Class.train_image_paths) // self.batch_size) + 1
-            for idx in range(batch_idxs):
-                image_batch, mask_batch, step_loss, step_summary, _ = self.sess.run([self.images, self.masks,
-                                                                                     self.loss_op, self.summary_op, self.train_op])
+            self.sess.run(self.iterator.initializer)
+            for idx in range(self.n_batches):
+
+                _, step_loss, step_summary = self.sess.run([self.train_op, self.loss_op, self.summary_op])
 
                 counter += 1
                 print("Epoch: [%2d/%2d] [%4d/%4d] time: %4.4f, loss: %.8f"
-                      % (epoch, self.epoch, idx, batch_idxs, time.time() - start_time, step_loss))
-
+                      % (epoch, self.epoch, idx, self.n_batches, time.time() - start_time, step_loss))
                 writer.add_summary(step_summary, global_step=counter)
 
-                '''
-                # test and save checkpoints
-                if idx % self.checkpoint_step == 0 or idx == batch_idx - 1:
+                # save checkpoints
+                if idx % self.checkpoint_step == 0 or idx == self.n_batches - 1:
                     self.save(self.checkpoint_dir, counter)
+                    print("Saved checkpoints")
 
-                    # test
-                    test_batch, test_init_op = dataset.test_batch()
-                    sess.run(test_init_op)
-                    test_images, test_masks = sess.run(test_batch)
-
-                    # print(tf.shape(test_images))
-                    # print(tf.shape(test_masks))
-
-
+                '''
+                # test
+                if idx % self.test_step ==0:
+                    
                     # test_images = np.multiply(test_images, 1.0 / 255)
 
                     test_images = test_images * 1.0 / 255
@@ -143,8 +126,7 @@ class MobileHair(object):
                     print(tf.shape(pred_masks))
 
                     draw_results(test_images, test_masks, pred_masks, idx, self.sample_dir)
-                    print(" [*] Saved checkpoint and test samples")
-                    '''
+                '''
     def network(self, inputs):
         with tf.variable_scope("network"):
             # Encoder blocks
@@ -166,7 +148,6 @@ class MobileHair(object):
             # Decoder blocks
             h14 = upsample_with_addition(h13, h11, "up1", 1024)
             h15 = inv_depthwise_seperable_conv2d(h14, "inv_ds_conv1", 64)
-            print(h15.get_shape(), h5.get_shape())
             h16 = upsample_with_addition(h15, h5, "up2", 64)
             h17 = inv_depthwise_seperable_conv2d(h16, "inv_ds_conv2", 64)
             h18 = upsample_with_addition(h17, h3, "up3", 64)

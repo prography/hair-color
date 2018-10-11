@@ -1,5 +1,6 @@
 import tensorflow as tf
 import random
+import math
 
 
 class DataLoader(object):
@@ -40,7 +41,6 @@ class DataLoader(object):
         self.image_extension = image_extension
         self.image_size = image_size
         self.channels = channels
-
         self.crop_size = crop_size
         self.palette = palette
         if seed is None:
@@ -50,7 +50,7 @@ class DataLoader(object):
 
     def train_test_split(self, paths, num_test):
         """
-        Splits
+        Splits paths into train and test.
         """
         return paths[:-num_test], paths[-num_test:]
 
@@ -233,22 +233,16 @@ class DataLoader(object):
         data = data.map(self._normalize_data,
                         num_parallel_calls=num_threads).prefetch(buffer)
 
+        # Shuffle
         if shuffle:
             data = data.shuffle(buffer)
 
         # Create iterator
-        # iterator = tf.data.Iterator.from_structure(
-        #     data.output_types, data.output_shapes)
+        iterator = data.make_initializable_iterator()
 
-        iterator = data.make_one_shot_iterator()
+        n_batches = math.ceil(len(self.train_image_paths) // batch_size)
 
-        # Next element Op
-        image, mask = iterator.get_next()
-
-        # Data set init. op
-        # init_op = iterator.make_initializer(data)
-
-        return image, mask
+        return iterator, n_batches
 
     def load_test_data(self):
         for test_image_path in self.test_image_paths:

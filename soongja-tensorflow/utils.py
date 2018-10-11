@@ -5,6 +5,11 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 
+def show_all_variables():
+  model_vars = tf.trainable_variables()
+  slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+
+
 def draw_results(test_inputs, test_targets, test_segmentation, batch_num, sample_dir):
     n_examples_to_plot = 12
     fig, axs = plt.subplots(4, n_examples_to_plot, figsize=(n_examples_to_plot * 3, 10))
@@ -21,8 +26,3 @@ def draw_results(test_inputs, test_targets, test_segmentation, batch_num, sample
 
     plt.savefig('{}/figure{}.jpg'.format(IMAGE_PLOT_DIR, batch_num))
     return buf
-
-
-def show_all_variables():
-  model_vars = tf.trainable_variables()
-  slim.model_analyzer.analyze_vars(model_vars, print_info=True)
