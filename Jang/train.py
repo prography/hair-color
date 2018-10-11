@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
-from model import MovileMatNet
+from model import MobileMatNet
 
 
 def weights_init(m):
@@ -37,7 +37,7 @@ class Trainer(object):
         self.build_model()
 
     def build_model(self):
-        self.net = MovileMatNet(im_size=self.image_size, nf=self.nf)
+        self.net = MobileMatNet(im_size=self.image_size, nf=self.nf)
         self.net.apply(weights_init)
         self.net.to(self.device)
 
