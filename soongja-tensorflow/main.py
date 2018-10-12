@@ -1,7 +1,7 @@
 import os
 import pprint
 import tensorflow as tf
-from model import MobileHair
+from model import MobileHairNet
 from utils import show_all_variables
 
 flags = tf.app.flags
@@ -33,11 +33,11 @@ def main(_):
     run_config.gpu_options.allow_growth = True
 
     with tf.Session(config=run_config) as sess:
-        net = MobileHair(sess, FLAGS)
+        model = MobileHairNet(sess, FLAGS)
 
         show_all_variables()
 
-        net.train()
+        model.train()
 
 
 if __name__ == '__main__':

@@ -7,33 +7,29 @@ from dataloader import DataLoader
 from utils import draw_results
 
 
-class MobileHair(object):
+class MobileHairNet(object):
     def __init__(self, sess, config):
         self.sess = sess
 
         self.input_height = config.input_height
         self.input_width = config.input_width
-
         self.batch_size = config.batch_size
         self.epoch = config.epoch
         self.learning_rate = config.learning_rate
-
         self.graph_dir = config.graph_dir
         self.log_dir = config.log_dir
         self.checkpoint_dir = config.checkpoint_dir
         self.sample_dir = config.sample_dir
-
         self.data_dir = config.data_dir
         self.dataset_name = config.dataset_name
-
         self.checkpoint_step = config.checkpoint_step
         self.test_step = config.test_step
 
         self.build_model()
 
     def build_model(self):
-        """ """
-        """ Input Image """
+
+        ##### Input Image #####
         IMAGE_DIR_PATH = os.path.join(self.data_dir, 'images')
         MASK_DIR_PATH = os.path.join(self.data_dir, 'masks')
 
@@ -47,25 +43,22 @@ class MobileHair(object):
                                                                batch_size=self.batch_size, num_threads=1, buffer=30)
 
         self.images, self.masks = self.iterator.get_next()
+        # dtype and scale
+        # self.images: float32, 0~1
+        # self.masks: uint8, 0,1
         self.sess.run(self.iterator.initializer)
         print(self.images)
-        print(self.sess.run(self.images))
-
-        # print(self.masks)
+        # print(self.sess.run(self.images))
+        print(self.masks)
         # print(self.sess.run(self.masks[0, 112, 112 ,0]))
 
-        """ Logits """
-        # self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='inputs')
-        # self.labels = tf.placeholder(tf.int64, [None, self.input_height, self.input_width, 1], name='labels')
+        # Logits and predicted masks
+        self.logits = self.net(self.images)
+        self.preds = tf.cast(tf.expand_dims(tf.argmax(self.logits, axis=3) * 255, 3), tf.uint8) # for tf.summary.image
 
-        self.logits = self.network(self.images)
-
-        # tf.summary.image can only receive uint8 or float32 tensors
-        self.preds = tf.expand_dims(tf.cast(tf.argmax(self.logits, axis=3) * 255, tf.uint8), 3)
-
-        """ Loss """
+        # Loss
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
-        reshaped_labels = tf.cast(tf.reshape(self.masks, [-1]) / 255, tf.int64)
+        reshaped_labels = tf.cast(tf.reshape(self.masks, [-1]) / 255, tf.int64) # for softmax cross entropy
 
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=reshaped_logits, labels=reshaped_labels)
         self.loss_op = tf.reduce_mean(cross_entropy, name='cross_entropy_mean')
@@ -82,14 +75,15 @@ class MobileHair(object):
         self.summary_op = tf.summary.merge_all()
 
     def train(self):
+        print(tf.global_variables())
+
         tf.global_variables_initializer().run()
 
         tf.train.write_graph(self.sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
 
         writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir(), self.sess.graph)
-        # get_default_graph()와 sess.graph 바꿔가며 찍어보자 뭐가 다른가.
 
-        self.saver = tf.train.Saver(max_to_keep=5) # 왜 tf.global_variables() 안쓰지
+        self.saver = tf.train.Saver(max_to_keep=5)
 
         counter = 1
         could_load, checkpoint_counter = self.load(self.checkpoint_dir)
@@ -137,7 +131,7 @@ class MobileHair(object):
 
                     draw_results(test_images, test_masks, pred_masks, idx, self.sample_dir)
                 '''
-    def network(self, inputs):
+    def net(self, inputs):
         with tf.variable_scope("network"):
             # Encoder blocks
             h0 = conv2d(inputs, "in_conv", 32, 3, 2)
