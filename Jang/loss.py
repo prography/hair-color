@@ -2,8 +2,10 @@ from skimage.io import imread, imsave
 from skimage.color import rgb2gray
 from skimage import filters
 from sklearn.preprocessing import normalize
+import torch.nn as nn
+import torch
 
-class Image_Gradient:
+class ImageGradient:
     def __init__(self, image):
         self.image = image
     def get_gradient(self):
@@ -16,11 +18,28 @@ class Image_Gradient:
 
         return edges_x, edges_y
 
-class Loss:
-    def __init__(self, image):
+class ImageLoss:
+    def __init__(self, image, mask):
         self.image = image
+        self.mask = mask
     def get_loss(self):
-        pass
+        image_grad_x, image_grad_y = ImageGradient(image=self.image).get_gradient()
+        mask_grad_x, mask_grad_y = ImageGradient(image=self.mask).get_gradient()
+        IMx = torch.matmul(image_grad_x, mask_grad_x)
+        IMy = torch.matmul(image_grad_y, mask_grad_y)
+        Mmag = torch.add(torch.pow(mask_grad_x, 2), torch.pow(mask_grad_y, 2))
+        IM = torch.add(1, torch.neg(torch.add(IMx, IMy)))
+        numerator = torch.sum(torch.matmul(Mmag, IM))
+        denominator = torch.sum(Mmag)
+        out = torch.div(numerator, denominator)
+        return out
 
-#img = Image_Gradient('dataset/Kim.PNG')
-#edge = img.get_gradient()
+class HairMetteLoss(nn.CrossEntropyLoss):
+    def __init__(self, image, mask, label):
+        super(HairMetteLoss, self).__init__()
+        criterion = nn.CrossEntropyLoss()
+        criterion = criterion(image, label)
+        grad_loss = ImageLoss(image, mask)
+
+        return grad_loss + criterion
+
