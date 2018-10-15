@@ -17,7 +17,7 @@ flags.DEFINE_string("sample_dir", "samples", "Directory name to save test image 
 flags.DEFINE_string("data_dir", "dataset", "Root directory of your dataset []")
 flags.DEFINE_string("dataset_name", "segxyhand", "Root directory of your dataset []")
 flags.DEFINE_integer("checkpoint_step", 100, "Step Interval to save checkpoints []")
-flags.DEFINE_integer("test_step", 100, "Step Interval to test sample images []")
+flags.DEFINE_integer("test_step", 1, "Step Interval to test sample images []")
 
 FLAGS = flags.FLAGS
 

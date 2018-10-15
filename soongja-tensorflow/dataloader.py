@@ -1,3 +1,5 @@
+import numpy as np
+import cv2
 import tensorflow as tf
 import random
 import math
@@ -38,6 +40,7 @@ class DataLoader(object):
         self.train_image_paths, self.test_image_paths = self.train_test_split(image_paths, num_test)
         self.train_mask_paths, self.test_mask_paths = self.train_test_split(mask_paths, num_test)
 
+        print(self.test_image_paths)
         self.image_extension = image_extension
         self.image_size = image_size
         self.channels = channels
@@ -248,19 +251,16 @@ class DataLoader(object):
         return iterator, n_batches
 
     def load_test_data(self):
+        inputs = []
+        targets = []
+
         for test_image_path in self.test_image_paths:
-            img = misc.imread(test_image_path, mode='RGB')
-            img = np.expand_dims(img, axis=0)
-            img
+            test_image = np.array(cv2.imread(test_image_path)[:,:,::-1])
+            # test_image = np.multiply(test_image, 1.0 / 255)
+            inputs.append(test_image)
 
+        for test_mask_path in self.test_mask_paths:
+            test_mask = np.array(cv2.imread(test_mask_path))
+            targets.append(test_mask)
 
-        for file in self.test_image_paths:
-            test_image = np.array(cv2.imread(input_image, 0))  # load grayscale
-        # test_image = np.multiply(test_image, 1.0 / 255)
-        inputs.append(test_image)
-
-        target_image = cv2.imread(target_image, 0)
-        target_image = cv2.threshold(target_image, 127, 1, cv2.THRESH_BINARY)[1]
-        targets.append(target_image)
-
-        return np.array(self.test_inputs, dtype=np.uint8), np.array(self.test_targets, dtype=np.uint8)
+        return np.array(inputs), np.array(targets, dtype=np.uint8)

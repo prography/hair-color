@@ -36,21 +36,17 @@ class MobileHairNet(object):
         image_paths = [os.path.join(IMAGE_DIR_PATH, x) for x in os.listdir(IMAGE_DIR_PATH) if x.endswith('.png')]
         mask_paths = [os.path.join(MASK_DIR_PATH, x) for x in os.listdir(MASK_DIR_PATH) if x.endswith('.png')]
 
-        dataloader = DataLoader(image_paths=image_paths, mask_paths=mask_paths, image_extension='png',
+        self.dataloader = DataLoader(image_paths=image_paths, mask_paths=mask_paths, image_extension='png',
                                 image_size=(self.input_height, self.input_width), channels=(3, 1), num_test=1100)
 
-        self.iterator, self.n_batches = dataloader.train_batch(shuffle=True, augment=False, one_hot_encode=False,
+        self.iterator, self.n_batches = self.dataloader.train_batch(shuffle=True, augment=False, one_hot_encode=False,
                                                                batch_size=self.batch_size, num_threads=1, buffer=30)
 
         self.images, self.masks = self.iterator.get_next()
         # dtype and scale
         # self.images: float32, 0~1
         # self.masks: uint8, 0,1
-        self.sess.run(self.iterator.initializer)
-        print(self.images)
-        # print(self.sess.run(self.images))
-        print(self.masks)
-        # print(self.sess.run(self.masks[0, 112, 112 ,0]))
+        # self.sess.run(self.iterator.initializer)
 
         # Logits and predicted masks
         self.logits = self.net(self.images)
@@ -110,27 +106,22 @@ class MobileHairNet(object):
                     self.save(self.checkpoint_dir, counter)
                     print("Saved checkpoints")
 
-                '''
                 # test
-                if idx % self.test_step ==0:
-                    
-                    # test_images = np.multiply(test_images, 1.0 / 255)
+                if idx % self.test_step == 0:
+                    with tf.variable_scope("net", reuse=True) as scope:
+                        scope.reuse_variables()
+                        # inputs = tf.placeholder(tf.float32,
+                        #          [None, self.input_height, self.input_width, 3], name='inputs')
+                        # test data
+                        test_images, test_masks = self.dataloader.load_test_data()
+                        test_images = tf.convert_to_tensor(np.multiply(test_images, 1.0 / 255), np.float32)
+                        test_masks = tf.convert_to_tensor(test_masks, np.float32)
 
-                    test_images = test_images * 1.0 / 255
+                        logits = self.sess.run(self.net(test_images))
+                        preds = tf.cast(tf.expand_dims(tf.argmax(logits, axis=3) * 255, 3), tf.uint8)
 
-                    preds = sess.run(self.logits, feed_dict={self.inputs: test_images})
-                    test_images = tf.reshape(test_images, (-1, self.input_height, self.input_width, 3))
-                    test_masks = tf.reshape(test_masks, (-1, self.input_height, self.input_width, 1))
-                    preds = tf.argmax(preds, axis=3)
-                    print(preds)
-                    # pred_masks = np.reshape(preds, (-1, self.input_height, self.input_width, 1))
-                    pred_masks = tf.expand_dims(preds, 3)
-                    print(tf.shape(test_images))
-                    print(tf.shape(test_masks))
-                    print(tf.shape(pred_masks))
+                        draw_results(test_images, test_masks, preds, idx, self.sample_dir)
 
-                    draw_results(test_images, test_masks, pred_masks, idx, self.sample_dir)
-                '''
     def net(self, inputs):
         with tf.variable_scope("network"):
             # Encoder blocks
