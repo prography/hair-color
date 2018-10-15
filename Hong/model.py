@@ -39,14 +39,32 @@ class decode_depthwise(nn.Module):
         x= self.conv()
         return x
 
-class conv_last(nn.Module):
+class up_skip(nn.Module):
+    def __init__(self,in_channels, out_channels):
+        super(up_skip, self).__init__()
+        self.up = nn.Upsample(scale_factor=2)
+        self.conv = nn.Conv2d(in_channels, out_channels, 1, 1, 0)
+
+    def forward(self,x1,x2):
+        x1 = self.up(x1)
+        x2 = self.conv(x2)
+        x = self.torch.add(x1,x2)
+        return x
+
+
+
+
+
+class conv_softmax(nn.Module):
     def __init__(self,in_channels,out_channels):
         super(conv_last, self).__init__()
         self.conv = nn.Squential(
-            nn.Conv2d(in_channels,out_channels, kernel_size=1, stride=1),
+            nn.Conv2d(in_channels,out_channels, kernel_size=1, stride=1)
+            nn.Softmax(dim = 1)
+        )
 
-    def forward(self,x):
-            x=self.conv()
+    def forward(self, x):
+            x = self.conv()
             return x
 
 
@@ -71,17 +89,55 @@ class Mobilehair(nn.Module):
         self.edw13 = encode_depthwise(1024, 1024, 1)
 
 
-        self.up1 = nn.Upsample(scale_factor=2)
+        self.up1 = up_skip(512,1024)
         self.ddw1 = decode_depthwise(1024, 64, 1)
-        self.up2 = nn.Upsample(scale_factor=2)
+        self.up2 = up_skip(256,64)
         self.ddw2 = decode_depthwise(64,64, 1)
-        self.up3 = nn.Upsample(scale_factor=2)
+        self.up3 = up_skip(128,64)
         self.ddw3 = decode_depthwise(64, 64, 1)
-        self.up4 = nn.Upsample(scale_factor=2)
-        self.ddw4 = decode_depthwise(scale_factor=2)
+        self.up4 = up_skip(64,64)
+        self.ddw4 = decode_depthwise(64, 64, 1)
         self.up5 = nn.Upsamle(scale_factor=2)
         self.ddw5 = decode_depthwise(64, 64, 1)
-        self.lac = conv_last(64,64)
+        self.lac = conv_softmax(64,2)
+
+
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.edw1(x1)
+        x3 = self.edw2(x2)
+        x4 = self.edw3(x3)
+        x5 = self.edw4(x4)
+        x6 = self.edw5(x5)
+        x7 = self.edw6(x6)
+        x8 = self.edw7(x7)
+        x9 = self.edw8(x8)
+        x10 = self.edw9(x9)
+        x11 = self.edw10(x10)
+        x12 = self.edw11(x11)
+        x13 = self.edw12(x12)
+        x14 = self.edw13(x13)
+
+        x = self.up1(x,x12)
+        x = self.ddw1(x)
+        x = self.up2(x,x6)
+        x = self.ddw2(x)
+        x = self.up3(x,x4)
+        x = self.ddw3(x)
+        x = self.up4(x,x2)
+        x = self.ddw4(x)
+        x = self.up5(x)
+        x = self.ddw5(x)
+        x = self.lac(x)
+
+
+        return x
+
+
+
+
+
+
 
 
 
