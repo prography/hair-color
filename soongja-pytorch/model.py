@@ -76,9 +76,9 @@ class out_conv(nn.Module):
         return x
 
 
-class MobileHair(nn.Module):
+class MobileHairNet(nn.Module):
     def __init__(self):
-        super(MobileHair, self).__init__()
+        super(MobileHairNet, self).__init__()
 
         self.inc = in_conv(3, 32)
 
@@ -103,7 +103,7 @@ class MobileHair(nn.Module):
         self.up3 = up_add(128, 64)
         self.inv_dw3 = inverse_conv_dw(64, 64)
         self.up4 = up_add(64, 64)
-        self.inv_dw4 = inv_conv_dw(64, 64)
+        self.inv_dw4 = inverse_conv_dw(64, 64)
         self.up5 = up_only()
         self.inv_dw5 = inverse_conv_dw(64, 64)
 

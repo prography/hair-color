@@ -162,7 +162,7 @@ class MobileHairNet(object):
             self.input_height, self.input_width)
 
     def save(self, checkpoint_dir, step):
-        model_name = "MobileHair.model"
+        model_name = "MobileHairNet.model"
         checkpoint_dir = os.path.join(checkpoint_dir, self.model_dir())
 
         if not os.path.exists(checkpoint_dir):
