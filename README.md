@@ -4,12 +4,12 @@
 ***
 #  딥러닝 이슈
 - [ ] hair image 데이터셋 모으기
-- [ ] Resolution multiplier ρ?
-- [ ] learning constant ε?
-- [ ] encoder/decoder filter 갯수가 비대칭적이다
+- [x] Resolution multiplier ρ?
+- [x] learning constant ε?
+- [x] encoder/decoder filter 갯수가 비대칭적이다
 - [x] Skip connection 하는 방법. concatenate? add?
 - [ ] Pixel-wise softmax 구현방법 + loss function
-- [ ] Gradient magnitude 뭐지?
+- [x] Gradient magnitude 뭐지?
 - [ ] Mobilenet transfer learning 가능한가?
 - [ ] Tensorflow quantization하면 속도 향상 될까?
 - [ ] Pytorch dataloader 다시 만들기
