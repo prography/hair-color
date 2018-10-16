@@ -3,7 +3,7 @@
 
 ***
 #  딥러닝 이슈
-- [ ] hair image 데이터셋 모으기
+- [x] Pytorch dataloader 다시 만들기
 - [x] Resolution multiplier ρ?
 - [x] learning constant ε?
 - [x] encoder/decoder filter 갯수가 비대칭적이다
@@ -12,7 +12,9 @@
 - [x] Gradient magnitude 뭐지?
 - [ ] Mobilenet transfer learning 가능한가?
 - [ ] Tensorflow quantization하면 속도 향상 될까?
-- [x] Pytorch dataloader 다시 만들기
+- [ ] hair image 데이터셋 모으기
+- [ ] gradient loss 추가하기
+
 
 ### 데이터셋
 - Dropbox: images/h0001.png, masks/h0001.png
