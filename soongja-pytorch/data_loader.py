@@ -23,7 +23,10 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         image = Image.open(os.path.join(self.data_dir, 'images', self.image_paths[index])).convert('RGB')
-        mask = Image.open(os.path.join(self.data_dir, 'masks', self.image_paths[index])).convert('RGB')
+        mask = Image.open(os.path.join(self.data_dir, 'masks', self.image_paths[index]))
+
+        image = image.resize((self.image_size, self.image_size))
+        mask = mask.resize((self.image_size, self.image_size))
 
         image = transforms.Compose([
             transforms.ToTensor(),
@@ -31,8 +34,7 @@ class Dataset(torch.utils.data.Dataset):
             ])(image)
 
         mask = transforms.Compose([
-            transforms.Grayscale(),
-            transforms.ToTensor(),
+            transforms.ToTensor()
             ])(mask)
 
         return image, mask
