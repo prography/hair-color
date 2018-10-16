@@ -25,11 +25,11 @@ class ImageLoss:
     def get_loss(self):
         image_grad_x, image_grad_y = ImageGradient(image=self.image).get_gradient()
         mask_grad_x, mask_grad_y = ImageGradient(image=self.mask).get_gradient()
-        IMx = torch.matmul(image_grad_x, mask_grad_x)
-        IMy = torch.matmul(image_grad_y, mask_grad_y)
+        IMx = torch.mul(image_grad_x, mask_grad_x)
+        IMy = torch.mul(image_grad_y, mask_grad_y)
         Mmag = torch.add(torch.pow(mask_grad_x, 2), torch.pow(mask_grad_y, 2))
         IM = torch.add(1, torch.neg(torch.add(IMx, IMy)))
-        numerator = torch.sum(torch.matmul(Mmag, IM))
+        numerator = torch.sum(torch.mul(Mmag, IM))
         denominator = torch.sum(Mmag)
         out = torch.div(numerator, denominator)
         return out
