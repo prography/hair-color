@@ -48,9 +48,15 @@ class MobileHairNet(object):
         # self.masks: uint8, 0,1
         # self.sess.run(self.iterator.initializer)
 
+        self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='test_inputs')
+
         # Logits and predicted masks
-        self.logits = self.net(self.images)
+        self.logits = self.net(self.inputs) # 원래 self.images가 들어갔음
         self.preds = tf.cast(tf.expand_dims(tf.argmax(self.logits, axis=3) * 255, 3), tf.uint8) # for tf.summary.image
+
+        # validation
+        # self.test_inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='test_inputs')
+        # self.test_preds = tf.expand_dims(tf.argmax(self.net(self.test_inputs), axis=3) * 255, 3)
 
         # Loss
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
@@ -94,7 +100,8 @@ class MobileHairNet(object):
             self.sess.run(self.iterator.initializer)
             for idx in range(self.n_batches):
 
-                _, step_loss, step_summary = self.sess.run([self.train_op, self.loss_op, self.summary_op])
+                _, step_loss, step_summary = self.sess.run([self.train_op, self.loss_op, self.summary_op],
+                                                           feed_dict={self.inputs: self.images})
 
                 counter += 1
                 print("Epoch: [%2d/%2d] [%4d/%4d] time: %4.4f, loss: %.8f"
@@ -106,24 +113,26 @@ class MobileHairNet(object):
                     self.save(self.checkpoint_dir, counter)
                     print("Saved checkpoints")
 
-                # test
+                # validation
                 if idx % self.test_step == 0:
-                    with tf.variable_scope("net", reuse=True) as scope:
-                        scope.reuse_variables()
+                    # with tf.variable_scope("net", reuse=True) as scope:
+                    #     scope.reuse_variables()
                         # inputs = tf.placeholder(tf.float32,
                         #          [None, self.input_height, self.input_width, 3], name='inputs')
                         # test data
-                        test_images, test_masks = self.dataloader.load_test_data()
-                        test_images = tf.convert_to_tensor(np.multiply(test_images, 1.0 / 255), np.float32)
-                        test_masks = tf.convert_to_tensor(test_masks, np.float32)
+                    test_images, test_masks = self.dataloader.load_test_data()
+                    preds = self.sess.run(self.test_preds, feed_dict={self.test_inputs: test_images})
 
-                        logits = self.sess.run(self.net(test_images))
-                        preds = tf.cast(tf.expand_dims(tf.argmax(logits, axis=3) * 255, 3), tf.uint8)
-
-                        draw_results(test_images, test_masks, preds, idx, self.sample_dir)
+                        # test_images = tf.convert_to_tensor(np.multiply(test_images, 1.0 / 255), np.float32)
+                        # test_masks = tf.convert_to_tensor(test_masks, np.float32)
+                        #
+                        # logits = self.sess.run(self.net(test_images))
+                        # preds = tf.cast(tf.expand_dims(tf.argmax(logits, axis=3) * 255, 3), tf.uint8)
+                        #
+                    draw_results(test_images, test_masks, preds, idx, self.sample_dir)
 
     def net(self, inputs):
-        with tf.variable_scope("network"):
+        with tf.variable_scope("network", reuse=tf.AUTO_REUSE):
             # Encoder blocks
             h0 = conv2d(inputs, "in_conv", 32, 3, 2)
             h1 = depthwise_seperable_conv2d(h0, "ds_conv1", 64)
