@@ -1,3 +1,13 @@
+#
+#
+# data folder 구조
+# (data_folder) / original
+# (data_folder) / mask
+# (data_folder) / ...
+# (data_folder) / ...
+#
+#
+
 import glob
 import os
 
@@ -12,46 +22,54 @@ class Dataset(torch.utils.data.Dataset):
         self.data_folder = data_folder
         if not os.path.exists(self.data_folder):
             raise Exception("[!] {} not exists.".format(self.data_folder))
+
+        self.objects_path = []
+        self.image_name = os.listdir(os.path.join(data_folder, "original"))
+        for p in os.listdir(data_folder):
+            if p == "original":
+                continue
+            self.objects_path.append(os.path.join(data_folder, p))
+
+
         self.image_size = image_size
 
-        self.images = []
-        for label, dir in enumerate(os.listdir(self.data_folder)):
-            for path in glob.glob(os.path.join(self.data_folder, dir, '*')):
-                if os.path.splitext(path)[-1] == '.gif':
-                    continue
-                self.images.append((path, label))
 
     def __getitem__(self, index):
-        path, label = self.images[index]
+        image = Image.open(os.path.join(self.data_folder, 'original', self.image_name[index])).convert('RGB')
+        objects = []
+        for p in self.objects_path:
+            objects.append(Image.open(os.path.join(p, self.image_name[index])))
 
-        im = Image.open(path).convert('RGB')
 
-        transform = transforms.Compose([
-            transforms.CenterCrop(min(im.size[0], im.size[1])),
+        transform_image = transforms.Compose([
+            transforms.CenterCrop(min(image.size[0], image.size[1])),
             transforms.Resize(self.image_size),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-            ])
+            ])(image)
 
-        return transform(im), label
+        transform_object = []
+        for num,_ in enumerate(self.objects_path):
+            transform_object.append(transforms.Compose([
+                transforms.CenterCrop(min(image.size[0], image.size[1])),
+                transforms.Resize(self.image_size),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])(objects[num]))
+
+
+
+        return transform_image, transform_object[0] #for hair segmentation
 
     def __len__(self):
-        return len( self.images)
+        return len( self.image_name)
 
 
-def get_loader(data_folder, image_size, batch_size):
+def get_loader(data_folder, batch_size, image_size, shuffle, num_workers):
     dataset = Dataset(data_folder, image_size)
 
-    train_length = int(0.9 * len(dataset))
-    test_length = len(dataset) - train_length
-
-    train_dataset, test_dataset = random_split(dataset, (train_length, test_length))
-
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+    dataloader = torch.utils.data.DataLoader(dataset=dataset,
                                                 batch_size=batch_size,
-                                                shuffle=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                               batch_size=batch_size,
-                                               shuffle=False)
-
-    return train_loader, test_loader
+                                                shuffle=shuffle,
+                                                num_workers=num_workers)
+    return dataloader

@@ -18,8 +18,9 @@ class ImageGradient:
 
         return edges_x, edges_y
 
-class GradientLoss:
+class HairMatteLoss:
     def __init__(self, image, mask):
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.image = image
         self.mask = mask
     def get_loss(self):
@@ -34,12 +35,11 @@ class GradientLoss:
         out = torch.div(numerator, denominator)
         return out
 
-class HairMetteLoss(nn.CrossEntropyLoss):
-    def __init__(self, image, mask, label):
-        super(HairMetteLoss, self).__init__()
-        criterion = nn.CrossEntropyLoss()
-        criterion = criterion(image, label)
-        grad_loss = ImageLoss(image, mask)
-
+class HairMatteLoss(nn.CrossEntropyLoss):
+    def __init__(self, image, mask):
+        super(HairMatteLoss, self).__init__()
+        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
+        criterion = CrossEntropyLoss(image, mask)
+        grad_loss = HairMatteLoss(image, mask)
         return grad_loss + criterion
 

@@ -9,9 +9,9 @@ from train import Trainer
 
 
 def main(config):
-    if config.outf is None:
-        config.outf = 'checkpoints'
-    os.makedirs(config.outf, exist_ok=True)
+    if config.checkpoint_dir is None:
+        config.checkpoint_dir = 'checkpoints'
+    os.makedirs(config.checkpoint_dir, exist_ok=True)
 
     # config.manual_seed = random.randint(1, 10000)
     # print("Random Seed: ", config.manual_seed)
@@ -23,9 +23,10 @@ def main(config):
 
     # cudnn.benchmark = True
 
-    train_loader, test_loader = get_loader(config.data_path, config.image_size, config.batch_size)
+    data_loader = get_loader(config.data_path, config.batch_size, config.image_size,
+                            shuffle=True, num_workers=int(config.workers))
 
-    trainer = Trainer(config, train_loader, test_loader)
+    trainer = Trainer(config, data_loader)
 
     trainer.train()
     trainer.test()

@@ -93,7 +93,7 @@ class MobileMatNet(nn.Module):
             _Layer_Depwise_Decode(in_channel=2*nf, out_channel=2*nf, kernel_size=kernel_size),
             nn.Upsample(scale_factor=2),
             _Layer_Depwise_Decode(in_channel=2*nf, out_channel=2*nf, kernel_size=kernel_size),
-            nn.Conv2d(in_channels=2*nf, out_channels=2, kernel_size=kernel_size)
+            nn.Conv2d(in_channels=2*nf, out_channels=2, kernel_size=kernel_size, padding=1)
         )
         self.encode_to_decoder4 = nn.Conv2d(in_channels=16 * self.nf, out_channels=32 * self.nf, kernel_size=1)
         self.encode_to_decoder3 = nn.Conv2d(in_channels=8 * self.nf, out_channels=2 * self.nf, kernel_size=1)
@@ -118,6 +118,6 @@ class MobileMatNet(nn.Module):
         decode_layer3 = torch.add(self.decode_layer3(decode_layer2), encode_layer2)
         decode_layer4 = torch.add(self.decode_layer4(decode_layer3), encode_layer1)
         decode_layer5 = self.decode_layer5(decode_layer4)
-        print(decode_layer5.shape)
         out = self.soft_max(decode_layer5)
+        print(decode_layer4.shape)
         return out
