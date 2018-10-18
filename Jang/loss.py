@@ -4,6 +4,8 @@ from skimage import filters
 from sklearn.preprocessing import normalize
 import torch.nn as nn
 import torch
+from config import get_config
+config = get_config()
 
 class ImageGradient:
     def __init__(self, image):
@@ -18,7 +20,7 @@ class ImageGradient:
 
         return edges_x, edges_y
 
-class HairMatteLoss:
+class ImageGradientLoss:
     def __init__(self, image, mask):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.image = image
@@ -35,11 +37,15 @@ class HairMatteLoss:
         out = torch.div(numerator, denominator)
         return out
 
-class HairMatteLoss(nn.CrossEntropyLoss):
-    def __init__(self, image, mask):
+class HairMatteLoss:
+    def __init__(self, image, mask, pred):
+        self.num_classes = config.num_classes
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         super(HairMatteLoss, self).__init__()
         CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
-        criterion = CrossEntropyLoss(image, mask)
-        grad_loss = HairMatteLoss(image, mask)
-        return grad_loss + criterion
+        pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+        mask_flat = mask.squeeze(1).view(-1).long()
+        criterion = CrossEntropyLoss(pred_flat, mask_flat)
+        grad_loss = ImageGradientLoss(image, mask).toTensor()
+        return torch.add(grad_loss, criterion)
 

@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from model import MobileMatNet
-
+from loss import HairMatteLoss
 
 # weight initialization
 def weights_init(m):
@@ -90,7 +90,7 @@ class Trainer(object):
                 # mask_flat.shape (N*224*224, 1)
 
                 self.net.zero_grad()
-                loss = CrossEntropyLoss(pred_flat, mask_flat)
+                loss = HairMatteLoss(img, mask, pred)
                 loss.backward()
                 optimizer.step()
 

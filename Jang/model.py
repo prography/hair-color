@@ -119,5 +119,4 @@ class MobileMatNet(nn.Module):
         decode_layer4 = torch.add(self.decode_layer4(decode_layer3), encode_layer1)
         decode_layer5 = self.decode_layer5(decode_layer4)
         out = self.soft_max(decode_layer5)
-        print(decode_layer4.shape)
         return out
