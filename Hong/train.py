@@ -19,7 +19,7 @@ class ImageGradient:
     def __init__(self, image):
         self.image = image
     def get_gradient(self):
-        im = rgb2gray(imread('./dataset/Kim.PNG'))
+        im = rgb2gray(image))
         edges_x = filters.sobel_h(im)
         edges_y = filters.sobel_v(im)
 
@@ -46,12 +46,21 @@ class GradientLoss:
 
 class HairMetteLoss(nn.CrossEntropyLoss):
     def __init__(self, image, mask, pred, w):
+        self.num_classes = config.num_classes
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         super(HairMetteLoss, self).__init__()
-        criterion = nn.CrossEntropyLoss()
-        criterion = criterion(pred, mask)
-        grad_loss = GradientLoss(image, pred)
+        criterion = nn.CrossEntropyLoss().to(self.device)
+        pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+        mask_flat = mask.squeeze(1).view(-1).long()
+        # pred_flat.shape (N*224*224, 2)
+        # mask_flat.shape (N*224*224, 1)
 
-        return grad_loss*w + criterion                  ##weight을 곱한다.
+        criterion = criterion(pred_flat, mask_flat)
+        grad_loss = GradientLoss(image, pred)
+        grad_loss = torch.mul(grad_loss, w)
+        total_loss = torch.add(grad_loss, criterion)
+
+        return total_loss
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -101,7 +110,6 @@ class Trainer(object):
         print("[*] Model loaded: {}".format(filename))
 
     def train(self):
-        criterion = nn.CrossEntropyLoss().to(self.device)
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
 
         # --> optimizer
@@ -110,29 +118,51 @@ class Trainer(object):
         print('Start Training!')
         for epoch in range(self.epoch):
             for step, (imgs, masks) in enumerate(self.data_loader):
-                imgage, mask = imgs.to(self.device), masks.to(self.device)
-                pred = self.net(imgs)
+                img, mask = imgs.to(self.device), masks.to(self.device)
+                pred = self.net(img)
                 # pred.shape (N, 2, 224, 224)
                 # mask.shape (N, 1, 224, 224)
 
-                pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
-                mask_flat = mask.squeeze(1).view(-1).long()
-                # pred_flat.shape (N*224*224, 2)
-                # mask_flat.shape (N*224*224, 1)
-
                 self.net.zero_grad()
-                loss = criterion(pred_flat, mask_flat)
+                loss = HairMetteLoss(image, mask, pred, 0.5)
                 loss.backward()
                 optimizer.step()
 
-
-                # --> training process
-
                 step_end_time = time.time()
-                print('[%d/%d][%d/%d] - time_passed: %.2f, Loss: %.4f'
-                      % (epoch, self.epoch, step, len(self.train_loader), step_end_time - start_time, loss))
+                print('[%d/%d][%d/%d] - time_passed: %.2f, CrossEntropyLoss: %.2f'
+                      % (epoch, self.epoch, step, self.num_steps, step_end_time - start_time, loss))
 
-            torch.save(self.net.state_dict(), '%s/CNN_epoch_%d.pth' % (self.outf, epoch))
-            print("Saved checkpoint")
-            print('Finished Training')
+                # save sample images
+                if step % self.sample_step == 0:
+                    self.save_sample_imgs(img[0], mask[0], torch.argmax(pred[0], 0), self.sample_dir, epoch, step)
+                    print('[*] Saved sample images')
 
+                # save checkpoints
+                if step % self.checkpoint_step == 0:
+                    torch.save(self.net.state_dict(), '%s/MobileHair_epoch-%d_step-%d.pth'
+                               % (self.checkpoint_dir, epoch, step))
+                    print("[*] Saved checkpoint")
+
+    def save_sample_imgs(self, real_img, real_mask, prediction, save_dir, epoch, step):
+        data = [real_img, real_mask, prediction]
+        names = ["Image", "Mask", "Prediction"]
+
+        fig = plt.figure()
+        for i, d in enumerate(data):
+            d = d.squeeze()
+            im = d.data.cpu().numpy()
+
+            if i > 0:
+                im = np.expand_dims(im, axis=0)
+                im = np.concatenate((im, im, im), axis=0)
+
+            im = (im.transpose(1, 2, 0) + 1) / 2
+
+            f = fig.add_subplot(1, 3, i + 1)
+            f.imshow(im)
+            f.set_title(names[i])
+            f.set_xticks([])
+            f.set_yticks([])
+
+        p = os.path.join(save_dir, "epoch-%s_step-%s.png" % (epoch, step))
+        plt.savefig(p)

@@ -9,24 +9,22 @@ from train import Trainer
 
 
 def main(config):
-    if config.outf is None:
-        config.outf = 'checkpoints'
+    os.makedirs(config.sample_dir, exist_ok=True)
     os.makedirs(config.outf, exist_ok=True)
 
-    # config.manual_seed = random.randint(1, 10000)
-    #     # print("Random Seed: ", config.manual_seed)
-    #     # random.seed(config.manual_seed)
-    #     # torch.manual_seed(config.manual_seed)
-    #
-    #     # if torch.cuda.is_available():
-    #     #     torch.cuda.manual_seed_all(config.manual_seed)
-    #
-    #     # cudnn.benchmark = True
+    config.manual_seed = random.randint(1, 10000)
+    print("Random Seed: ", config.manual_seed)
+    random.seed(config.manual_seed)
+    torch.manual_seed(config.manual_seed)
 
-    train_loader, test_loader = get_loader(config.data_path, config.image_size, config.batch_size)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(config.manual_seed)
 
-    trainer = Trainer(config, train_loader, test_loader)
+    cudnn.benchmark = True
 
+    data_loader = get_loader(config.data_dir, config.image_size, config.batch_size)
+
+    trainer = Trainer(config, data_loader)
     trainer.train()
 
 
