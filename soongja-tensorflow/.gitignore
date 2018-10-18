@@ -1,6 +1,7 @@
 __pycache__
-lfw
 checkpoints
 samples
 logs
 graphs
+dataset
+lfw-png

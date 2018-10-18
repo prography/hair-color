@@ -1,9 +1,8 @@
 import os
 import time
-import numpy as np
 import tensorflow as tf
 from ops import *
-from dataloader import DataLoader
+from dataloader import Dataset
 from utils import draw_results
 
 
@@ -23,68 +22,54 @@ class MobileHairNet(object):
         self.data_dir = config.data_dir
         self.dataset_name = config.dataset_name
         self.checkpoint_step = config.checkpoint_step
-        self.test_step = config.test_step
+        self.validation_step = config.validation_step
 
         self.build_model()
 
     def build_model(self):
+        self.dataset = Dataset(batch_size=self.batch_size, folder=self.data_dir)
 
-        ##### Input Image #####
-        IMAGE_DIR_PATH = os.path.join(self.data_dir, 'images')
-        MASK_DIR_PATH = os.path.join(self.data_dir, 'masks')
+        """ Inputs and predictions"""
+        self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='inputs')
+        self.targets = tf.placeholder(tf.uint8, [None, self.input_height, self.input_width, 1], name='targets')
 
-        image_paths = [os.path.join(IMAGE_DIR_PATH, x) for x in os.listdir(IMAGE_DIR_PATH) if x.endswith('.png')]
-        mask_paths = [os.path.join(MASK_DIR_PATH, x) for x in os.listdir(MASK_DIR_PATH) if x.endswith('.png')]
+        self.logits = tf.identity(self.net(self.inputs), name='logits') # for loss op
+        self.preds = tf.cast(tf.expand_dims(tf.argmax(self.logits, axis=3) * 255, 3), tf.uint8, name='preds')
 
-        self.dataloader = DataLoader(image_paths=image_paths, mask_paths=mask_paths, image_extension='png',
-                                image_size=(self.input_height, self.input_width), channels=(3, 1), num_test=1100)
+        #                 dtype      scale            shape
+        # self.inputs:  float32        0~1    (N,224,224,3)
+        # self.targets:   uint8      0,255    (N,224,224,1)
+        # self.logits:  float32        0~1    (N,224,224,2)
+        # self.preds:     uint8      0,255    (N,224,224,1)
 
-        self.iterator, self.n_batches = self.dataloader.train_batch(shuffle=True, augment=False, one_hot_encode=False,
-                                                               batch_size=self.batch_size, num_threads=1, buffer=30)
-
-        self.images, self.masks = self.iterator.get_next()
-        # dtype and scale
-        # self.images: float32, 0~1
-        # self.masks: uint8, 0,1
-        # self.sess.run(self.iterator.initializer)
-
-        self.inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='test_inputs')
-
-        # Logits and predicted masks
-        self.logits = self.net(self.inputs) # 원래 self.images가 들어갔음
-        self.preds = tf.cast(tf.expand_dims(tf.argmax(self.logits, axis=3) * 255, 3), tf.uint8) # for tf.summary.image
-
-        # validation
-        # self.test_inputs = tf.placeholder(tf.float32, [None, self.input_height, self.input_width, 3], name='test_inputs')
-        # self.test_preds = tf.expand_dims(tf.argmax(self.net(self.test_inputs), axis=3) * 255, 3)
-
-        # Loss
+        """ Loss """
         reshaped_logits = tf.reshape(self.logits, [-1, 2])
-        reshaped_labels = tf.cast(tf.reshape(self.masks, [-1]) / 255, tf.int64) # for softmax cross entropy
+        reshaped_targets = tf.cast(tf.reshape(self.targets, [-1]) / 255, tf.int64) # for softmax cross entropy
 
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=reshaped_logits, labels=reshaped_labels)
+        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=reshaped_logits, labels=reshaped_targets)
         self.loss_op = tf.reduce_mean(cross_entropy, name='cross_entropy_mean')
 
-        """ Training """
+        """ Accuracy """
+        correct_pred = tf.cast(tf.equal(self.preds, self.targets), tf.float32)
+        self.accuracy_op = tf.reduce_mean(correct_pred, name='accuracy')
+
+        """ Train """
         t_vars = tf.trainable_variables()
         optim = tf.train.AdadeltaOptimizer(self.learning_rate, rho=0.95, epsilon=1e-07)
         self.train_op = optim.minimize(self.loss_op, var_list=t_vars)
 
         """ Summary """
-        tf.summary.image("pred_masks", self.preds, max_outputs=1)
-        tf.summary.image("real_masks", self.masks, max_outputs=1)
+        tf.summary.image("preds", self.preds, max_outputs=1)
+        tf.summary.image("targets", self.targets, max_outputs=1)
         tf.summary.scalar("loss", self.loss_op)
+        tf.summary.scalar("accuracy", self.accuracy_op)
         self.summary_op = tf.summary.merge_all()
 
     def train(self):
-        print(tf.global_variables())
-
-        tf.global_variables_initializer().run()
+        self.sess.run(tf.global_variables_initializer())
 
         tf.train.write_graph(self.sess.graph_def, logdir=self.graph_dir, name='full_graph.pb', as_text=False)
-
         writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir(), self.sess.graph)
-
         self.saver = tf.train.Saver(max_to_keep=5)
 
         counter = 1
@@ -95,44 +80,61 @@ class MobileHairNet(object):
         else:
             print(" [!] Load failed...")
 
-        start_time = time.time()
-        for epoch in range(self.epoch):
-            self.sess.run(self.iterator.initializer)
-            for idx in range(self.n_batches):
+        val_accuracies = []
 
-                _, step_loss, step_summary = self.sess.run([self.train_op, self.loss_op, self.summary_op],
-                                                           feed_dict={self.inputs: self.images})
+        start_time = time.time()
+        for epoch_i in range(self.epoch):
+            self.dataset.reset_batch_pointer()
+
+            for batch_i in range(self.dataset.num_batches_in_epoch()):
+                batch_inputs, batch_targets = self.dataset.next_batch()
+
+                _, step_loss, step_accuracy, step_summary = \
+                    self.sess.run([self.train_op, self.loss_op, self.accuracy_op, self.summary_op],
+                                   feed_dict={self.inputs: batch_inputs, self.targets: batch_targets})
 
                 counter += 1
-                print("Epoch: [%2d/%2d] [%4d/%4d] time: %4.4f, loss: %.8f"
-                      % (epoch, self.epoch, idx, self.n_batches, time.time() - start_time, step_loss))
+                print("Epoch: [%2d/%2d] [%4d/%4d] time: %4.4f, loss: %.8f, Accuracy: %.8f"
+                      % (epoch_i, self.epoch, batch_i, self.dataset.num_batches_in_epoch(),
+                         time.time() - start_time, step_loss, step_accuracy))
                 writer.add_summary(step_summary, global_step=counter)
 
-                # save checkpoints
-                if idx % self.checkpoint_step == 0 or idx == self.n_batches - 1:
-                    self.save(self.checkpoint_dir, counter)
-                    print("Saved checkpoints")
+                # Validation
+                if batch_i % self.validation_step == 0:
+                    val_inputs, val_targets = self.dataset.val_set()
 
-                # validation
-                if idx % self.test_step == 0:
-                    # with tf.variable_scope("net", reuse=True) as scope:
-                    #     scope.reuse_variables()
-                        # inputs = tf.placeholder(tf.float32,
-                        #          [None, self.input_height, self.input_width, 3], name='inputs')
-                        # test data
-                    test_images, test_masks = self.dataloader.load_test_data()
-                    preds = self.sess.run(self.test_preds, feed_dict={self.test_inputs: test_images})
+                    val_accuracy = self.sess.run(self.accuracy_op, feed_dict={self.inputs: val_inputs,
+                                                                              self.targets: val_targets})
 
-                        # test_images = tf.convert_to_tensor(np.multiply(test_images, 1.0 / 255), np.float32)
-                        # test_masks = tf.convert_to_tensor(test_masks, np.float32)
-                        #
-                        # logits = self.sess.run(self.net(test_images))
-                        # preds = tf.cast(tf.expand_dims(tf.argmax(logits, axis=3) * 255, 3), tf.uint8)
-                        #
-                    draw_results(test_images, test_masks, preds, idx, self.sample_dir)
+                    # matplotlib reconstruction
+                    val_inputs, val_masks, val_logits_a, val_logits_b, val_preds = \
+                    self.sess.run([self.inputs,
+                                   tf.squeeze(self.targets, axis=3),
+                                   self.logits[:,:,:,0],
+                                   self.logits[:,:,:,1],
+                                   tf.squeeze(self.preds, axis=3)], feed_dict={self.inputs: val_inputs,
+                                                                               self.targets: val_targets})
+
+                    draw_results(val_inputs, val_masks, val_logits_a, val_logits_b, val_preds,
+                                 val_accuracy, epoch_i, batch_i, self.sample_dir, self.model_dir(), num_samples=10)
+
+                    print()
+                    print("=====================================================================")
+                    print("Validation accuracy: %.8f" % val_accuracy)
+                    val_accuracies.append(val_accuracy)
+                    print("Accuracies in time:", [val_accuracies[i] for i in range(len(val_accuracies))])
+                    max_acc = max(val_accuracies)
+                    print("Best accuracy: %.8f" % max_acc)
+                    if val_accuracy >= max_acc:
+                        self.save(self.checkpoint_dir, counter)
+                        print("Validation accuracy exceeded the current best. Saved checkpoints!!!")
+                    else:
+                        print("Accuracy hasn't increased. Did not save checkpoints...")
+                    print("=====================================================================")
+                    print()
 
     def net(self, inputs):
-        with tf.variable_scope("network", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("network"):
             # Encoder blocks
             h0 = conv2d(inputs, "in_conv", 32, 3, 2)
             h1 = depthwise_seperable_conv2d(h0, "ds_conv1", 64)
