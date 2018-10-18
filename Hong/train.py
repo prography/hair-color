@@ -7,8 +7,51 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
-from model import Basic_CNN
+from model import Mobilehair
 
+from skimage.io import imread, imsave
+from skimage.color import rgb2gray
+from skimage import filters
+from sklearn.preprocessing import normalize
+
+##Loss
+class ImageGradient:
+    def __init__(self, image):
+        self.image = image
+    def get_gradient(self):
+        im = rgb2gray(imread('./dataset/Kim.PNG'))
+        edges_x = filters.sobel_h(im)
+        edges_y = filters.sobel_v(im)
+
+        edges_x = normalize(edges_x)
+        edges_y = normalize(edges_y)
+
+        return edges_x, edges_y
+
+class GradientLoss:
+    def __init__(self, image, mask):
+        self.image = image
+        self.mask = mask
+    def get_loss(self):
+        image_grad_x, image_grad_y = ImageGradient(image=self.image).get_gradient()
+        mask_grad_x, mask_grad_y = ImageGradient(image=self.mask).get_gradient()
+        IMx = torch.mul(image_grad_x, mask_grad_x)
+        IMy = torch.mul(image_grad_y, mask_grad_y)
+        Mmag = torch.sqrt(torch.add(torch.pow(mask_grad_x, 2), torch.pow(mask_grad_y, 2)))
+        IM = torch.add(1, torch.neg(torch.add(IMx, IMy)))
+        numerator = torch.sum(torch.mul(Mmag, IM))
+        denominator = torch.sum(Mmag)
+        out = torch.div(numerator, denominator)
+        return out
+
+class HairMetteLoss(nn.CrossEntropyLoss):
+    def __init__(self, image, mask, pred, w):
+        super(HairMetteLoss, self).__init__()
+        criterion = nn.CrossEntropyLoss()
+        criterion = criterion(pred, mask)
+        grad_loss = GradientLoss(image, pred)
+
+        return grad_loss*w + criterion                  ##weight을 곱한다.
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -20,10 +63,9 @@ def weights_init(m):
 
 
 class Trainer(object):
-    def __init__(self, config, train_loader, test_loader):
+    def __init__(self, config, data_loader):
         self.config = config
-        self.train_loader = train_loader
-        self.test_loader = test_loader
+        self.data_loader = data_loader
         self.image_size = config.image_size
         self.nf = config.nf
         self.num_classes = config.num_classes
@@ -37,7 +79,7 @@ class Trainer(object):
         self.build_model()
 
     def build_model(self):
-        self.net = Basic_CNN(self.image_size, self.nf, self.num_classes)
+        self.net = Mobilehair()
         self.net.apply(weights_init)
         self.net.to(self.device)
 
@@ -47,7 +89,7 @@ class Trainer(object):
     def load_model(self):
         print("[*] Load models from {}...".format(self.model_path))
 
-        paths = glob(os.path.join(self.model_path, 'CNN*.pth'))
+        paths = glob(os.path.join(self.model_path, 'Mobilehair*.pth'))
         paths.sort()
 
         if len(paths) == 0:
@@ -67,13 +109,19 @@ class Trainer(object):
         start_time = time.time()
         print('Start Training!')
         for epoch in range(self.epoch):
-            for step, (imgs, labels) in enumerate(self.train_loader):
-                imgs, labels = imgs.to(self.device), labels.to(self.device)
+            for step, (imgs, masks) in enumerate(self.data_loader):
+                imgage, mask = imgs.to(self.device), masks.to(self.device)
+                pred = self.net(imgs)
+                # pred.shape (N, 2, 224, 224)
+                # mask.shape (N, 1, 224, 224)
 
-                preds = self.net(imgs)
+                pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+                mask_flat = mask.squeeze(1).view(-1).long()
+                # pred_flat.shape (N*224*224, 2)
+                # mask_flat.shape (N*224*224, 1)
 
                 self.net.zero_grad()
-                loss = criterion(preds, labels)
+                loss = criterion(pred_flat, mask_flat)
                 loss.backward()
                 optimizer.step()
 
@@ -88,38 +136,3 @@ class Trainer(object):
             print("Saved checkpoint")
             print('Finished Training')
 
-        # Test
-        print('------------Test------------')
-        self.net.eval()   #test용 , dropout X, batch normalizaiton 이 아니라 누적으로 normalization함
-        with torch.no_grad(): ###test용 backpro안하는거
-            correct = 0
-            total = 0
-
-            for step, (imgs, labels) in enumerate(self.test_loader):
-                imgs = imgs.to(self.device)
-                preds = self.net(imgs)
-                _, predicted = torch.max(preds, dim=1)
-
-                correct += (predicted == labels).sum().item()
-                total += labels.size(0)
-
-                # show first batch results with matplotlib
-                batch_size = imgs.size(0)
-                if step == 0:
-                    fig = plt.figure()
-                    inverse_normalize = transforms.Normalize(
-                        mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5],
-                        std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
-                    for i in range(batch_size):
-                        subplot = fig.add_subplot(1, batch_size, i + 1)
-                        subplot.set_xticks([])
-                        subplot.set_yticks([])
-                        if predicted[i] == labels[i]:
-                            color = 'green'
-                        else:
-                            color = 'red'
-                        subplot.set_title('pred: %d\n real: %d' % (predicted[i], labels[i]), color=color)
-                        subplot.imshow(inverse_normalize(imgs[i]).numpy().transpose(1,2,0))
-
-            print('Test accuracy on %d test images: %.2f%%' % (total, 100 * correct / total))
-            plt.show()

@@ -60,7 +60,7 @@ class conv_softmax(nn.Module):
         super(conv_last, self).__init__()
         self.conv = nn.Squential(
             nn.Conv2d(in_channels,out_channels, kernel_size=1, stride=1)
-            nn.Softmax(dim = 1)
+            nn.Conv2d(out_channels,2)
         )
 
     def forward(self, x):
