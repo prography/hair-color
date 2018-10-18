@@ -18,7 +18,7 @@ class ImageGradient:
 
         return edges_x, edges_y
 
-class ImageLoss:
+class GradientLoss:
     def __init__(self, image, mask):
         self.image = image
         self.mask = mask
