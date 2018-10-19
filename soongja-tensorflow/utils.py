@@ -9,10 +9,10 @@ def show_all_variables():
   slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
 
-def draw_results(inputs, targets, logits_a, logits_b, preds,
-                 accuracy, epoch, batch_num, sample_dir, model_dir, num_samples):
+def draw_results(pixel_accuracy, IOU, inputs, targets, logits_a, logits_b, preds,
+                 epoch, batch_num, sample_dir, model_dir, num_samples):
     fig, axs = plt.subplots(5, num_samples, figsize=(num_samples * 3, 10))
-    fig.suptitle("Accuracy: %.8f" % accuracy, fontsize=20)
+    fig.suptitle("Pixel Accuracy: %.4f     IOU: %.4f" % (pixel_accuracy, IOU), fontsize=20)
     for example_i in range(num_samples):
         axs[0][example_i].imshow(inputs[example_i])
         axs[1][example_i].imshow(targets[example_i], cmap='gray')
@@ -20,6 +20,7 @@ def draw_results(inputs, targets, logits_a, logits_b, preds,
         axs[3][example_i].imshow(logits_b[example_i], cmap='gray')
         axs[4][example_i].imshow(preds[example_i], cmap='gray')
 
+    sample_dir = os.path.join(sample_dir, model_dir)
     if not os.path.exists(sample_dir):
         os.makedirs(sample_dir)
-    plt.savefig('{}/{}/val_epoch-{}_batch-{}.jpg'.format(sample_dir, model_dir, epoch, batch_num))
+    plt.savefig(os.path.join(sample_dir, 'val_epoch-{}_batch-{}.jpg'.format(epoch, batch_num)))
