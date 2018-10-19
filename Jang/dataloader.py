@@ -7,21 +7,18 @@
 # (data_folder) / ...
 #
 #
-
-import glob
 import os
 
 import torch.utils.data
 import torchvision.transforms as transforms
 from PIL import Image
-from torch.utils.data.dataset import random_split
 
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_folder, image_size):
         self.data_folder = data_folder
         if not os.path.exists(self.data_folder):
-            raise Exception("[!] {} not exists.".format(self.data_folder))
+            raise Exception(" ! %s  not exists." % self.data_folder)
 
         self.objects_path = []
         self.image_name = os.listdir(os.path.join(data_folder, "original"))
@@ -39,6 +36,7 @@ class Dataset(torch.utils.data.Dataset):
         objects = []
         for p in self.objects_path:
             objects.append(Image.open(os.path.join(p, self.image_name[index])))
+
 
 
         transform_image = transforms.Compose([
@@ -59,7 +57,7 @@ class Dataset(torch.utils.data.Dataset):
 
 
 
-        return transform_image, transform_object[0] #for hair segmentation
+        return transform_image, transform_object[0], self.image_name[index] #for hair segmentation
 
     def __len__(self):
         return len( self.image_name)

@@ -5,13 +5,14 @@ from sklearn.preprocessing import normalize
 import torch.nn as nn
 import torch
 from config import get_config
+import os
 config = get_config()
 
 class ImageGradient:
-    def __init__(self, image):
-        self.image = image
+    def __init__(self, image_name):
+        self.image_name = image_name
     def get_gradient(self):
-        im = rgb2gray(imread('./dataset/Kim.PNG'))
+        im = rgb2gray(imread(self.image_name))
         edges_x = filters.sobel_h(im)
         edges_y = filters.sobel_v(im)
 
@@ -26,8 +27,8 @@ class ImageGradientLoss:
         self.image = image
         self.mask = mask
     def get_loss(self):
-        image_grad_x, image_grad_y = ImageGradient(image=self.image).get_gradient()
-        mask_grad_x, mask_grad_y = ImageGradient(image=self.mask).get_gradient()
+        image_grad_x, image_grad_y = ImageGradient(os.path.join(config.data_path, 'original',self.image)).get_gradient()
+        mask_grad_x, mask_grad_y = ImageGradient(os.path.join(config.data_path, 'mask',self.image)).get_gradient()
         IMx = torch.mul(image_grad_x, mask_grad_x)
         IMy = torch.mul(image_grad_y, mask_grad_y)
         Mmag = torch.sqrt(torch.add(torch.pow(mask_grad_x, 2), torch.pow(mask_grad_y, 2)))
@@ -37,15 +38,14 @@ class ImageGradientLoss:
         out = torch.div(numerator, denominator)
         return out
 
-class HairMatteLoss:
-    def __init__(self, image, mask, pred):
+class HairMatLoss:
+    def __init__(self, pred, mask, image_name):
         self.num_classes = config.num_classes
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        super(HairMatteLoss, self).__init__()
         CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
         pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
         mask_flat = mask.squeeze(1).view(-1).long()
         criterion = CrossEntropyLoss(pred_flat, mask_flat)
-        grad_loss = ImageGradientLoss(image, mask).toTensor()
+        grad_loss = ImageGradientLoss(image_name,image_name)
         return torch.add(grad_loss, criterion)
 

@@ -11,7 +11,7 @@ parser.add_argument('--decay_epoch', type=int, default=10, help='learning rate d
 parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 parser.add_argument('--sample_step', type=int, default=100, help='step of saving sample images')
 parser.add_argument('--checkpoint_step', type=int, default=100, help='step of saving checkpoints')
-parser.add_argument('--data_path', default='dataset', help='path to dataset')
+parser.add_argument('--data_path', default='./dataset', help='path to dataset')
 parser.add_argument('--checkpoint_dir', default='checkpoints', help="path to saved models (to continue training)")
 parser.add_argument('--sample_dir', default='samples', help='folder to output images and model checkpoints')
 parser.add_argument('--workers', type=int, default=4, help='number of data loading workers')
