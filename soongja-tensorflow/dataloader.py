@@ -75,9 +75,9 @@ class Dataset:
         return np.array(inputs, dtype=np.float32), np.array(targets, dtype=np.float32)
 
     def val_set(self):
-        # permutation = np.random.permutation(len(self.val_inputs))
-        # self.val_inputs = [self.val_inputs[i] for i in permutation]
-        # self.val_targets = [self.val_targets[i] for i in permutation]
+        permutation = np.random.permutation(len(self.val_inputs))
+        self.val_inputs = [self.val_inputs[i] for i in permutation]
+        self.val_targets = [self.val_targets[i] for i in permutation]
         return np.array(self.val_inputs, dtype=np.float32), np.array(self.val_targets, dtype=np.float32)
 
     def test_set(self):
