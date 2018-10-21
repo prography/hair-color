@@ -50,7 +50,7 @@
 ### transfer learning
 - MobileNet과 우리 논문의 feature extractor 부분이 완전히 일치하는가
 - 일치하지 않는다면 특정 부분의 weight만 가져올 수 있을까? 그렇게 하면 성능의 문제는 없을까? 
-- (관련 코드)[https://gist.github.com/jeasinema/ed9236ce743c8efaf30fa2ff732749f5]
+- [관련 코드](https://gist.github.com/jeasinema/ed9236ce743c8efaf30fa2ff732749f5)
 
 ### quantization
 - Tensorflow quantization하면 float32 -> 8bit integer 가 되는데, 속도는 빨라질 것인가
