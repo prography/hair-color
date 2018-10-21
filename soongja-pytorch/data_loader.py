@@ -14,7 +14,7 @@ class Dataset(torch.utils.data.Dataset):
         if not os.path.exists(self.data_dir):
             raise Exception("[!] {} not exists.".format(self.data_dir))
 
-        self.image_paths = os.listdir(os.path.join(self.data_dir, 'original')) #파일명은 같기에 "image"대신 "mask"해도 동일합니다.
+        self.image_paths = os.listdir(os.path.join(self.data_dir, 'images')) #파일명은 같기에 "image"대신 "mask"해도 동일합니다.
         print('Dataset size:', len(self.image_paths))
         if len(self.image_paths) == 0:
             raise Exception("No images are found in {}".format(self.data_dir))
@@ -22,7 +22,7 @@ class Dataset(torch.utils.data.Dataset):
         self.image_size = image_size
 
     def __getitem__(self, index):
-        image = Image.open(os.path.join(self.data_dir, 'original', self.image_paths[index])).convert('RGB')
+        image = Image.open(os.path.join(self.data_dir, 'images', self.image_paths[index])).convert('RGB')
         mask = Image.open(os.path.join(self.data_dir, 'masks', self.image_paths[index]))
 
         image = image.resize((self.image_size, self.image_size))
