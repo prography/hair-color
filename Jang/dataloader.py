@@ -21,9 +21,11 @@ class Dataset(torch.utils.data.Dataset):
             raise Exception(" ! %s  not exists." % self.data_folder)
 
         self.objects_path = []
-        self.image_name = os.listdir(os.path.join(data_folder, "original"))
+        self.image_name = os.listdir(os.path.join(data_folder, "images"))
+        if len(self.image_name) == 0:
+            raise Exception("No image found in %s" % self.image_name)
         for p in os.listdir(data_folder):
-            if p == "original":
+            if p == "images":
                 continue
             self.objects_path.append(os.path.join(data_folder, p))
 
@@ -32,11 +34,10 @@ class Dataset(torch.utils.data.Dataset):
 
 
     def __getitem__(self, index):
-        image = Image.open(os.path.join(self.data_folder, 'original', self.image_name[index])).convert('RGB')
+        image = Image.open(os.path.join(self.data_folder, 'images', self.image_name[index])).convert('RGB')
         objects = []
         for p in self.objects_path:
-            objects.append(Image.open(os.path.join(p, self.image_name[index])))
-
+            objects.append(Image.open(os.path.join( p, self.image_name[index])))
 
 
         transform_image = transforms.Compose([
@@ -57,7 +58,7 @@ class Dataset(torch.utils.data.Dataset):
 
 
 
-        return transform_image, transform_object[0]
+        return transform_image, transform_object[0] #for hair segmentation
 
     def __len__(self):
         return len( self.image_name)
