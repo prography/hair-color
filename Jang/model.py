@@ -36,9 +36,9 @@ class _Layer_Depwise_Decode(nn.Module):
         out = self.layer(x)
         return out
 
-class HairMatNet(nn.Module):
+class MobileHairNet(nn.Module):
     def __init__(self, im_size=224, nf=32, kernel_size=3):
-        super(HairMatNet, self).__init__()
+        super(MobileHairNet, self).__init__()
         self.nf = nf
 #######################################################################################################################
 #                                                                                                                     #

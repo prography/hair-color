@@ -57,7 +57,7 @@ class Dataset(torch.utils.data.Dataset):
 
 
 
-        return transform_image, transform_object[0], self.image_name[index] #for hair segmentation
+        return transform_image, transform_object[0]
 
     def __len__(self):
         return len( self.image_name)

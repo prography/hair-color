@@ -1,4 +1,4 @@
-from model import HairMatNet
+from model import MobileHairNet
 import os
 from glob import glob
 import torch
@@ -27,23 +27,26 @@ class Trainer:
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.data_loader = dataloader
         self.image_len = len(dataloader)
-        self.build_model()
         self.num_classes = config.num_classes
+        self.build_model()
 
     def build_model(self):
-        self.net = HairMatNet()
+        self.net = MobileHairNet()
         self.net.apply(weights_init)
         self.net.to(self.device)
+        self.load_model()
 
 
     def load_model(self):
+        print(" * Load checkpoint in ", str(self.model_path))
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        if os.listdir(self.model_path) == False:
-            print(" * No checkpoint in ", str(self.model_path))
+        if not os.listdir(self.model_path):
+            print(" ! No checkpoint in ", str(self.model_path))
+            return
 
-        model = glob(os.path.join(self.model_path, "HairMatNet*.pth"))
+        model = glob(os.path.join(self.model_path, "MobileHairNet*.pth"))
         model.sort()
 
         self.net.load_state_dict(torch.load(model[-1], map_location=self.device))
@@ -54,7 +57,7 @@ class Trainer:
         optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, eps=1e-7)
 
         for epoch in range(self.epoch):
-            for step, (image, mask, image_name) in enumerate(self.data_loader):
+            for step, (image, mask) in enumerate(self.data_loader):
                 image = image.to(self.device)
                 mask = mask.to(self.device)
                 criterion = self.net(image)
@@ -69,4 +72,4 @@ class Trainer:
                 optimizer.step()
 
                 print("epoch: [%d/%d] | image: [%d/%d] | loss: %.2f" % (epoch, self.epoch, step, self.image_len, loss))
-        torch.save(self.net.state_dict(), '%s/HairMatNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
+        torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
