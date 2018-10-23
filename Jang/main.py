@@ -12,6 +12,7 @@ def main(config):
     if config.checkpoint_dir is None:
         config.checkpoint_dir = 'checkpoints'
     os.makedirs(config.checkpoint_dir, exist_ok=True)
+    os.makedirs(config.sample_dir, exist_ok=True)
 
     # config.manual_seed = random.randint(1, 10000)
     # print("Random Seed: ", config.manual_seed)

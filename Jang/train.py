@@ -84,7 +84,6 @@ class Trainer:
         torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
 
     def save_sample_imgs(self, real_img, real_mask, prediction, save_dir, epoch, step):
-        os.makedirs(self.sample_dir, exist_ok=True)
         data = [real_img, real_mask, prediction]
         names = ["Image", "Mask", "Prediction"]
 
