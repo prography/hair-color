@@ -10,11 +10,10 @@ config = get_config()
 
 class ImageGradient:
     def __init__(self, image_name):
-        self.image_name = image_name
+        self.image = image_name
     def get_gradient(self):
-        im = rgb2gray(imread(self.image_name))
-        edges_x = filters.sobel_h(im)
-        edges_y = filters.sobel_v(im)
+        edges_x = filters.sobel_h(self.image)
+        edges_y = filters.sobel_v(self.image)
 
         edges_x = normalize(edges_x)
         edges_y = normalize(edges_y)
@@ -36,16 +35,17 @@ class ImageGradientLoss:
         numerator = torch.sum(torch.mul(Mmag, IM))
         denominator = torch.sum(Mmag)
         out = torch.div(numerator, denominator)
-        return out
+        return torch.FloatTensor(out)
 
 class HairMatLoss:
-    def __init__(self, pred, mask, image_name):
+    def __init__(self):
         self.num_classes = config.num_classes
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
+        self.CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
+    def get_loss(self, pred, mask, image):
         pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
         mask_flat = mask.squeeze(1).view(-1).long()
-        criterion = CrossEntropyLoss(pred_flat, mask_flat)
-        grad_loss = ImageGradientLoss(image_name,image_name)
+        criterion = self.CrossEntropyLoss(pred_flat, mask_flat)
+        grad_loss = ImageGradientLoss(image.cpu, mask.cpu)
         return torch.add(grad_loss, criterion)
 

@@ -52,11 +52,8 @@ class Dataset(torch.utils.data.Dataset):
             transform_object.append(transforms.Compose([
                 transforms.CenterCrop(min(image.size[0], image.size[1])),
                 transforms.Resize(self.image_size),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                transforms.ToTensor()
             ])(objects[num]))
-
-
 
         return transform_image, transform_object[0] #for hair segmentation
 

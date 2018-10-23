@@ -3,7 +3,8 @@ import os
 from glob import glob
 import torch
 import torch.nn as nn
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def weights_init(m):
@@ -29,6 +30,8 @@ class Trainer:
         self.image_len = len(dataloader)
         self.num_classes = config.num_classes
         self.build_model()
+        self.sample_step = config.sample_step
+        self.sample_dir = config.sample_dir
 
     def build_model(self):
         self.net = MobileHairNet()
@@ -62,14 +65,45 @@ class Trainer:
                 mask = mask.to(self.device)
                 criterion = self.net(image)
 
-                pred_flat = criterion.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+                criterion_flat = criterion.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
                 mask_flat = mask.squeeze(1).view(-1).long()
 
 
                 self.net.zero_grad()
-                loss = CrossEntropyLoss(pred_flat, mask_flat)
+                loss = CrossEntropyLoss(criterion_flat, mask_flat)
                 loss.backward()
                 optimizer.step()
 
                 print("epoch: [%d/%d] | image: [%d/%d] | loss: %.2f" % (epoch, self.epoch, step, self.image_len, loss))
+
+                # save sample images
+                if step % self.sample_step == 0:
+                    self.save_sample_imgs(image[0], mask[0], torch.argmax(criterion[0], 0), self.sample_dir, epoch, step)
+                    print('[*] Saved sample images')
+
         torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
+
+    def save_sample_imgs(self, real_img, real_mask, prediction, save_dir, epoch, step):
+        os.makedirs(self.sample_dir, exist_ok=True)
+        data = [real_img, real_mask, prediction]
+        names = ["Image", "Mask", "Prediction"]
+
+        fig = plt.figure()
+        for i, d in enumerate(data):
+            d = d.squeeze()
+            im = d.data.cpu().numpy()
+
+            if i > 0:
+                im = np.expand_dims(im, axis=0)
+                im = np.concatenate((im, im, im), axis=0)
+
+            im = (im.transpose(1, 2, 0) + 1) / 2
+
+            f = fig.add_subplot(1, 3, i + 1)
+            f.imshow(im)
+            f.set_title(names[i])
+            f.set_xticks([])
+            f.set_yticks([])
+
+        p = os.path.join(save_dir, "epoch-%s_step-%s.png" % (epoch, step))
+        plt.savefig(p)
