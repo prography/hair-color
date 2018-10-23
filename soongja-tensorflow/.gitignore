@@ -7,3 +7,5 @@ dataset
 lfw-png
 segxyhand
 Figaro1k-png
+hairdata
+*.png
