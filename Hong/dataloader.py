@@ -27,8 +27,8 @@ class Dataset(torch.utils.data.Dataset):
 
         image = transforms.Compose([
             transforms.Resize(self.image_size),
-            transforms.ToTensor()
-           # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])(image)
 
 
