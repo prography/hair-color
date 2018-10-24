@@ -30,13 +30,11 @@ class Dataset:
 
             _input = cv2.imread(input_file)[:, :, ::-1]
             _input = np.array(cv2.resize(_input, (self.height, self.width)))
-            # _input = np.multiply(_input, 1.0 / 255)
             inputs.append(_input)
 
             target = cv2.imread(target_file, 0)
             target = cv2.resize(target, (self.height, self.width))
             target = np.expand_dims(target, axis=3)
-            # target = np.multiply(target, 1.0 / 255)
             targets.append(target)
 
         return inputs, targets
