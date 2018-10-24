@@ -123,9 +123,9 @@ class MobileHairNet(object):
         dataset = Dataset(self.input_height, self.input_width, self.batch_size, self.data_dir)
 
         # imgaug
-        aug_seq = iaa.SomeOf((0, 2), [
-            iaa.CropAndPad(percent=(-0.2, 0.2), pad_mode=ia.ALL, name="Crop"),
-            iaa.Fliplr(1, name="Flip"),
+        aug_seq = iaa.OneOf([
+            iaa.CropAndPad(percent=(-0.3, 0.3), pad_mode=ia.ALL, name="Crop"),
+            iaa.Scale((0.3, 1.0), name="Scale"),
             iaa.Affine(rotate=(-30, 30), name="Affine"),
             iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
             iaa.Dropout(0.02, name="Dropout"),
