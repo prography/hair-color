@@ -122,7 +122,7 @@ class MobileHairNet(object):
         # dataset
         dataset = Dataset(self.input_height, self.input_width, self.batch_size, self.data_dir)
 
-        # image augmentation
+        # imgaug
         aug_seq = iaa.SomeOf((0, 2), [
             iaa.CropAndPad(percent=(-0.2, 0.2), pad_mode=ia.ALL, name="Crop"),
             iaa.Fliplr(1, name="Flip"),
@@ -163,8 +163,13 @@ class MobileHairNet(object):
 
                 aug_seq_det = aug_seq.to_deterministic()
 
-                batch_inputs = np.multiply(aug_seq_det.augment_images(batch_inputs), 1.0 / 255)
-                batch_targets = np.multiply(aug_seq_det.augment_images(batch_targets, hooks=hooks_binmasks), 1.0 / 255)
+                # augmentation
+                batch_inputs = aug_seq_det.augment_images(batch_inputs)
+                batch_targets = aug_seq_det.augment_images(batch_targets, hooks=hooks_binmasks)
+
+                # per image standardization
+                batch_inputs = tf.map_fn(tf.image.per_image_standardization, batch_inputs)
+                batch_targets = tf.map_fn(tf.image.per_image_standardization, batch_targets)
 
                 feed_dict = {self.net.inputs: batch_inputs, self.net.targets: batch_targets}
 
@@ -184,8 +189,8 @@ class MobileHairNet(object):
                 # Validation
                 if batch_i % self.validation_step == 0:
                     val_inputs, val_targets = dataset.val_set()
-                    val_inputs = np.multiply(val_inputs, 1.0 / 255)
-                    val_targets = np.multiply(val_targets, 1.0 / 255)
+                    val_inputs = tf.map_fn(tf.image.per_image_standardization, val_inputs)
+                    val_targets = tf.map_fn(tf.image.per_image_standardization, val_targets)
 
                     feed_dict = {self.net.inputs: val_inputs, self.net.targets: val_targets}
 
