@@ -30,7 +30,6 @@ def main(_):
         cap = cv2.VideoCapture(0)
         frames = 0
         start_time = time.time()
-
         while cap.isOpened():
             ret, frame = cap.read()
             frame = cv2.flip(frame, 1)
@@ -39,18 +38,18 @@ def main(_):
                 frame = frame[60:420, 140:500]
                 frame = cv2.resize(frame, (FLAGS.input_height, FLAGS.input_width))
 
-                _input = frame[:, :, ::-1]
-                _input = np.expand_dims(frame, axis=0)
+                _input = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                _input = np.expand_dims(_input, axis=0)
 
                 out = sess.run(net.preds, feed_dict={net.inputs: _input})
                 out = out[0] * 255
 
                 frames += 1
                 fps = frames / (time.time() - start_time)
-                cv2.putText(out, 'FPS: %.2f' % fps, (10, 20), cv2.FONT_HERSHEY_PLAIN, 1, [0, 255, 0], 1)
+                cv2.putText(frame, 'FPS: %.2f' % fps, (10, 20), cv2.FONT_HERSHEY_PLAIN, 1, [0, 255, 0], 1)
 
                 cv2.imshow('input', frame)
-                cv2.imshow('demo', out)
+                cv2.imshow('output', out)
                 key = cv2.waitKey(1)
                 if key & 0xFF == ord('q'):
                     break
