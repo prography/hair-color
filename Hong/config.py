@@ -16,8 +16,6 @@ parser.add_argument('--checkpoint_dir', default='checkpoints', help="path to sav
 parser.add_argument('--sample_dir', default='samples', help='folder to output images and model checkpoints')
 
 
-
-
 def get_config():
     return parser.parse_args()
 

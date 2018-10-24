@@ -2,6 +2,7 @@ import os
 import time
 from glob import glob
 
+import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -14,41 +15,43 @@ from skimage.color import rgb2gray
 from skimage import filters
 from sklearn.preprocessing import normalize
 
-##Loss
-class ImageGradient:
-    def __init__(self, image):
-        self.image = image
-    def get_gradient(self):
-        im = rgb2gray(image)
-        edges_x = filters.sobel_h(im)
-        edges_y = filters.sobel_v(im)
 
-        edges_x = normalize(edges_x)
-        edges_y = normalize(edges_y)
+def image_gradient(_input):
+    if _input.shape[1]== 3:
+        im = rgb2gray(_input)
+    edges_x = filters.sobel_h(im)
+    edges_y = filters.sobel_v(im)
 
-        return edges_x, edges_y
+    edges_x = normalize(edges_x)
+    edges_y = normalize(edges_y)
+
+    return edges_x, edges_y
+
 
 class GradientLoss:
-    def __init__(self, image, mask):
+    def __init__(self, image, pred):
         self.image = image
-        self.mask = mask
+        self.pred = torch.argmax(pred, dim=1, keepdim=True)
+        print(self.pred.shape)
+
     def get_loss(self):
-        image_grad_x, image_grad_y = ImageGradient(image=self.image).get_gradient()
-        mask_grad_x, mask_grad_y = ImageGradient(image=self.mask).get_gradient()
-        IMx = torch.mul(image_grad_x, mask_grad_x)
-        IMy = torch.mul(image_grad_y, mask_grad_y)
-        Mmag = torch.sqrt(torch.add(torch.pow(mask_grad_x, 2), torch.pow(mask_grad_y, 2)))
+        image_grad_x, image_grad_y = image_gradient(self.image)
+        pred_grad_x, pred_grad_y = image_gradient(self.pred)
+        IMx = torch.mul(image_grad_x, pred_grad_x)
+        IMy = torch.mul(image_grad_y, pred_grad_y)
+        Mmag = torch.sqrt(torch.add(torch.pow(pred_grad_x, 2), torch.pow(pred_grad_y, 2)))
         IM = torch.add(1, torch.neg(torch.add(IMx, IMy)))
         numerator = torch.sum(torch.mul(Mmag, IM))
         denominator = torch.sum(Mmag)
         out = torch.div(numerator, denominator)
         return out
 
-class HairMetteLoss(nn.CrossEntropyLoss):
+
+class HairMatteLoss(nn.CrossEntropyLoss):
     def __init__(self, image, mask, pred, w):
-        self.num_classes = config.num_classes
+        self.num_classes = 2
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        super(HairMetteLoss, self).__init__()
+        super(HairMatteLoss, self).__init__()
         criterion = nn.CrossEntropyLoss().to(self.device)
         pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
         mask_flat = mask.squeeze(1).view(-1).long()
@@ -56,11 +59,12 @@ class HairMetteLoss(nn.CrossEntropyLoss):
         # mask_flat.shape (N*224*224, 1)
 
         criterion = criterion(pred_flat, mask_flat)
-        grad_loss = GradientLoss(image, pred)
-        grad_loss = torch.mul(grad_loss, w)
-        total_loss = torch.add(grad_loss, criterion)
+       # grad_loss = GradientLoss(image, pred)
+       #  grad_loss = torch.mul(grad_loss.get_loss(), w)
+       #  total_loss = torch.add(grad_loss, criterion)
+        self.total_loss = criterion
 
-        return total_loss
+
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -82,6 +86,11 @@ class Trainer(object):
         self.checkpoint_dir = config.checkpoint_dir
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.build_model()
+        self.sample_dir = config.sample_dir
+        self.sample_step = config.sample_step
+        self.checkpoint_step = config.checkpoint_step
+
+        self.num_steps = len(self.data_loader)
 
     def build_model(self):
         self.net = Mobilehair()
@@ -118,9 +127,8 @@ class Trainer(object):
                 pred = self.net(img)
                 # pred.shape (N, 2, 224, 224)
                 # mask.shape (N, 1, 224, 224)
-
                 self.net.zero_grad()
-                loss = HairMetteLoss(image, mask, pred, 0.5)
+                loss = HairMatteLoss(img, mask, pred, 0.5).total_loss
                 loss.backward()
                 optimizer.step()
 

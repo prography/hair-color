@@ -23,7 +23,7 @@ class encode_depthwise(nn.Module):
         )
 
     def forward(self,x):
-        x= self.conv()
+        x= self.conv(x)
         return x
 
 class decode_depthwise(nn.Module):
@@ -36,8 +36,9 @@ class decode_depthwise(nn.Module):
         )
 
     def forward(self,x):
-        x= self.conv()
+        x= self.conv(x)
         return x
+
 
 class up_skip(nn.Module):
     def __init__(self,in_channels, out_channels):
@@ -48,7 +49,7 @@ class up_skip(nn.Module):
     def forward(self,x1,x2):
         x1 = self.up(x1)
         x2 = self.conv(x2)
-        x = self.torch.add(x1,x2)
+        x = torch.add(x1, x2)
         return x
 
 
@@ -64,7 +65,7 @@ class conv_softmax(nn.Module):
         )
 
     def forward(self, x):
-            x = self.conv()
+            x = self.conv(x)
             return x
 
 
@@ -118,7 +119,7 @@ class Mobilehair(nn.Module):
         x13 = self.edw12(x12)
         x14 = self.edw13(x13)
 
-        x = self.up1(x,x12)
+        x = self.up1(x14,x12)
         x = self.ddw1(x)
         x = self.up2(x,x6)
         x = self.ddw2(x)
