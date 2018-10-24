@@ -6,6 +6,7 @@ import torch.backends.cudnn as cudnn
 from config import get_config
 from dataloader import get_loader
 from train import Trainer
+from test import Tester
 
 
 def main(config):
@@ -28,9 +29,9 @@ def main(config):
                             shuffle=True, num_workers=int(config.workers))
 
     trainer = Trainer(config, data_loader)
-
-    trainer.train()
-    trainer.test()
+    tester = Tester(config, data_loader)
+#    trainer.train()
+    tester.test()
 
 if __name__ == "__main__":
     config = get_config()

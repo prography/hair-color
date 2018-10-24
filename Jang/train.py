@@ -6,7 +6,6 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -18,7 +17,6 @@ def weights_init(m):
 
 class Trainer:
     def __init__(self, config, dataloader):
-        os.environ['CUDA_LAUNCH_BLOCKING'] = str(1)
         self.batch_size = config.batch_size
         self.config = config
         self.lr = config.lr
@@ -53,7 +51,7 @@ class Trainer:
         model.sort()
 
         self.net.load_state_dict(torch.load(model[-1], map_location=self.device))
-        print(" * Load Model form %s: " % str(self.model_path), str(model[-1]))
+        print(" * Load Model from %s: " % str(self.model_path), str(model[-1]))
 
     def train(self):
         CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)

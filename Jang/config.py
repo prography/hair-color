@@ -17,6 +17,8 @@ parser.add_argument('--sample_dir', default='samples', help='folder to output im
 parser.add_argument('--workers', type=int, default=4, help='number of data loading workers')
 parser.add_argument('--mode', type=str, default='train', help='Trainer mode: train or test')
 parser.add_argument('--nf', type=int, default=32, help='The number of filter')
+parser.add_argument('--num_test', type=int, default=32, help='The number of test image')
+parser.add_argument('--sample_image_dir', default='checkpoints', help="path to saved test(to continue training)")
 
 def get_config():
     return parser.parse_args()
