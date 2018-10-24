@@ -19,7 +19,7 @@ class ImageGradient:
     def __init__(self, image):
         self.image = image
     def get_gradient(self):
-        im = rgb2gray(image))
+        im = rgb2gray(image)
         edges_x = filters.sobel_h(im)
         edges_y = filters.sobel_v(im)
 
@@ -76,15 +76,11 @@ class Trainer(object):
         self.config = config
         self.data_loader = data_loader
         self.image_size = config.image_size
-        self.nf = config.nf
         self.num_classes = config.num_classes
         self.epoch = config.epoch
         self.lr = config.lr
-        self.model_path = config.model_path
-        self.outf = config.outf
-
+        self.checkpoint_dir = config.checkpoint_dir
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
         self.build_model()
 
     def build_model(self):
@@ -92,17 +88,17 @@ class Trainer(object):
         self.net.apply(weights_init)
         self.net.to(self.device)
 
-        if self.config.model_path != '':
+        if self.config.checkpoint_dir != '':
             self.load_model()
 
     def load_model(self):
-        print("[*] Load models from {}...".format(self.model_path))
+        print("[*] Load models from {}...".format(self.checkpoint_dir))
 
-        paths = glob(os.path.join(self.model_path, 'Mobilehair*.pth'))
+        paths = glob(os.path.join(self.checkpoint_dir, 'Mobilehair*.pth'))
         paths.sort()
 
         if len(paths) == 0:
-            print("[!] No checkpoint found in {}...".format(self.model_path))
+            print("[!] No checkpoint found in {}...".format(self.checkpoint_dir))
             return
 
         filename = paths[-1]

@@ -13,11 +13,11 @@ class conv_start(nn.Module):
 class encode_depthwise(nn.Module):
     def __init__(self,in_channels, out_channels,stride):
         super(encode_depthwise,self).__init__()
-        self.conv = nn.Squential(
+        self.conv = nn.Sequential(
             nn.Conv2d(in_channels,in_channels,3, stride, padding=1, groups=in_channels),
             nn.BatchNorm2d(in_channels),
-            nn,ReLU(),
-            nn.Conv2d(in_channels,out_channels,1,stride=1,padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels,out_channels,1, 1, 0),
             nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
@@ -27,11 +27,11 @@ class encode_depthwise(nn.Module):
         return x
 
 class decode_depthwise(nn.Module):
-    def __init__(self,in_channels, out_channels, stride):
+    def __init__(self,in_channels, out_channels):
         super(decode_depthwise,self).__init__()
-        self.conv = nn.Squential(
-            nn.Conv2d(in_channels, in_channels, 3, stride, padding=1, groups=in_channels),
-            nn.Conv2d(in_channels, out_channels,1,stride,padding=1,groups=1)
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, 3, 1, padding= 1, groups=in_channels),
+            nn.Conv2d(in_channels, out_channels,1, 1, padding=0, groups=1),
             nn.ReLU()
         )
 
@@ -43,7 +43,7 @@ class up_skip(nn.Module):
     def __init__(self,in_channels, out_channels):
         super(up_skip, self).__init__()
         self.up = nn.Upsample(scale_factor=2)
-        self.conv = nn.Conv2d(in_channels, out_channels, 1, 1, 0)
+        self.conv = nn.Conv2d(in_channels, out_channels, 1, 1, 0)  # stride랑 padding 값 궁금??
 
     def forward(self,x1,x2):
         x1 = self.up(x1)
@@ -57,10 +57,10 @@ class up_skip(nn.Module):
 
 class conv_softmax(nn.Module):
     def __init__(self,in_channels,out_channels):
-        super(conv_last, self).__init__()
-        self.conv = nn.Squential(
-            nn.Conv2d(in_channels,out_channels, kernel_size=1, stride=1)
-            nn.Conv2d(out_channels,2)
+        super(conv_softmax, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels,out_channels, kernel_size=1, stride=1),
+
         )
 
     def forward(self, x):
@@ -90,15 +90,15 @@ class Mobilehair(nn.Module):
 
 
         self.up1 = up_skip(512,1024)
-        self.ddw1 = decode_depthwise(1024, 64, 1)
+        self.ddw1 = decode_depthwise(1024, 64)
         self.up2 = up_skip(256,64)
-        self.ddw2 = decode_depthwise(64,64, 1)
+        self.ddw2 = decode_depthwise(64,64)
         self.up3 = up_skip(128,64)
-        self.ddw3 = decode_depthwise(64, 64, 1)
+        self.ddw3 = decode_depthwise(64, 64)
         self.up4 = up_skip(64,64)
-        self.ddw4 = decode_depthwise(64, 64, 1)
-        self.up5 = nn.Upsamle(scale_factor=2)
-        self.ddw5 = decode_depthwise(64, 64, 1)
+        self.ddw4 = decode_depthwise(64, 64)
+        self.up5 = nn.Upsample(scale_factor=2)
+        self.ddw5 = decode_depthwise(64, 64)
         self.lac = conv_softmax(64,2)
 
 

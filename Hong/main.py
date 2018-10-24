@@ -10,7 +10,7 @@ from train import Trainer
 
 def main(config):
     os.makedirs(config.sample_dir, exist_ok=True)
-    os.makedirs(config.outf, exist_ok=True)
+    os.makedirs(config.checkpoint_dir, exist_ok=True)
 
     config.manual_seed = random.randint(1, 10000)
     print("Random Seed: ", config.manual_seed)

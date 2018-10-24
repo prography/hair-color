@@ -1,4 +1,3 @@
-import glob
 import os
 
 import torch.utils.data
@@ -27,14 +26,15 @@ class Dataset(torch.utils.data.Dataset):
         mask = Image.open(os.path.join(self.data_folder, 'masks', self.image_paths[index]))
 
         image = transforms.Compose([
+            transforms.Resize(self.image_size),
             transforms.ToTensor(),
-            transforms.Resize(self.image_size)
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])(image)
 
+
         mask = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize(self.image_size)
+            transforms.Resize(self.image_size),
+            transforms.ToTensor()
             ])(mask)
 
         return image, mask

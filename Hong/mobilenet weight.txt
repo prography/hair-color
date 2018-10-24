@@ -1,0 +1,4 @@
+pytorch load trained weight
+ - https://www.kaggle.com/pvlima/use-pretrained-pytorch-models
+ - https://discuss.pytorch.org/t/loading-model-weights-and-some-variables-from-file/12536
+ - https://stackoverflow.com/questions/37505711/how-to-get-set-models-weight-delta-in-torch/37514788
