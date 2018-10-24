@@ -31,7 +31,8 @@ def main(_):
         img = cv2.resize(cv2.imread(FLAGS.test_image), (FLAGS.input_height, FLAGS.input_width))
 
         _input = np.array(img, dtype=np.float32)[:, :, ::-1]
-        _input = np.multiply(img, 1.0 / 255)
+        # _inpu = np.multiply(_input, 1.0 / 255)
+        # _input = sess.run(tf.image.per_image_standardization(_input))
         _input = np.expand_dims(_input, axis=0)
 
         out = sess.run(net.preds, feed_dict={net.inputs: _input})
