@@ -15,6 +15,9 @@ from skimage.color import rgb2gray
 from skimage import filters
 from sklearn.preprocessing import normalize
 
+import imgaug as ia
+from imgaug import augmenters as iaa
+
 
 def image_gradient(_input):
     if _input.shape[1]== 3:
@@ -116,13 +119,36 @@ class Trainer(object):
 
     def train(self):
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-
         # --> optimizer
+
+        ##augmentation
+        aug_seq = iaa.OneOf([
+            iaa.CropAndPad(percent=(-0.3, 0.3), pad_mode=ia.ALL, name="Crop"),
+            iaa.Scale((0.3, 1.0), name="Scale"),
+            iaa.Affine(rotate=(-30, 30), name="Affine"),
+            iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
+            iaa.Dropout(0.02, name="Dropout"),
+            iaa.AdditiveGaussianNoise(scale=0.05*255, per_channel=0.5, name="MyLittleNoise"),
+        ])
+
+        def activator_binmasks(images, augmenter, parents, default):
+            if augmenter.name in ["GaussianBlur", "Dropout", "MyLittleNoise"]:
+                return False
+            else:
+                return default
+        hooks_binmasks = ia.HooksImages(activator=activator_binmasks)
 
         start_time = time.time()
         print('Start Training!')
         for epoch in range(self.epoch):
             for step, (imgs, masks) in enumerate(self.data_loader):
+
+                # augmentation
+                aug_seq_det = aug_seq.to_deterministic()
+
+                imgs = aug_seq_det.augment_images(imgs)
+                masks = aug_seq_det.augment_images(masks, hooks=hooks_binmasks)
+
                 img, mask = imgs.to(self.device), masks.to(self.device)
                 pred = self.net(img)
                 # pred.shape (N, 2, 224, 224)
@@ -146,6 +172,13 @@ class Trainer(object):
                     torch.save(self.net.state_dict(), '%s/MobileHair_epoch-%d_step-%d.pth'
                                % (self.checkpoint_dir, epoch, step))
                     print("[*] Saved checkpoint")
+
+                # validation
+                if step % self.validation_step ==0:
+
+
+
+
 
     def save_sample_imgs(self, real_img, real_mask, prediction, save_dir, epoch, step):
         data = [real_img, real_mask, prediction]

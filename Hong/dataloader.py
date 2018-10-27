@@ -3,7 +3,6 @@ import os
 import torch.utils.data
 import torchvision.transforms as transforms
 from PIL import Image
-from torch.utils.data.dataset import random_split
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -37,10 +36,16 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.image_paths)
 
 
-def get_loader(data_folder, image_size, batch_size):
+
+def get_train_loader(data_folder, image_size, batch_size):
     dataset = Dataset(data_folder, image_size)
+
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
-                                              shuffle=True)
+                                              shuffle=True,)
+
 
     return data_loader
+
+
+
