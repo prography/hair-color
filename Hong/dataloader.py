@@ -37,7 +37,7 @@ class Dataset(torch.utils.data.Dataset):
 
 
 
-def get_train_loader(data_folder, image_size, batch_size):
+def get_loader(data_folder, image_size, batch_size):
     dataset = Dataset(data_folder, image_size)
 
     data_loader = torch.utils.data.DataLoader(dataset=dataset,

@@ -79,9 +79,10 @@ def weights_init(m):
 
 
 class Trainer(object):
-    def __init__(self, config, data_loader):
+    def __init__(self, config, test_loader, valid_loader):
         self.config = config
-        self.data_loader = data_loader
+        self.data_loader = test_loader
+        self.valid_loader = valid_loader
         self.image_size = config.image_size
         self.num_classes = config.num_classes
         self.epoch = config.epoch
@@ -90,6 +91,7 @@ class Trainer(object):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.build_model()
         self.sample_dir = config.sample_dir
+        self.valid_sample_dir = config.valid_sample_dir
         self.sample_step = config.sample_step
         self.checkpoint_step = config.checkpoint_step
 
@@ -117,6 +119,8 @@ class Trainer(object):
         self.net.load_state_dict(torch.load(filename, map_location=self.device))
         print("[*] Model loaded: {}".format(filename))
 
+
+
     def train(self):
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
         # --> optimizer
@@ -141,18 +145,48 @@ class Trainer(object):
         start_time = time.time()
         print('Start Training!')
         for epoch in range(self.epoch):
+
+            # validation
+            self.net.eval()
+            #with torch.no_grad()
+
+            for step, (imgs, masks) in enumerate(self.valid_loader):
+
+                #imgs = imgs.flatten()
+                #aug_seq_det = aug_seq.to_deterministic()
+                #imgs = aug_seq_det.augment_images(imgs)
+                #masks = aug_seq_det.augment_images(masks.flateen(), hooks=hooks_binmasks)
+
+                img, mask = imgs.to(self.device), masks.to(self.device)
+                pred = self.net(img)
+
+                self.save_sample_imgs(img[0], mask[0], torch.argmax(pred[0], 0), self.valid_sample_dir, epoch, step)
+                print('[*] Saved validation images')
+
+                self.num_classes = 2
+                pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+                mask_flat = mask.squeeze(1).view(-1).long()
+
+                SMOOTH = 1e-6
+                intersection = (pred_flat& mask_flat).float().sum(0)
+                union = (pred_flat | mask_flat).float().sum(0)
+
+                iou = (intersection + SMOOTH) / (union + SMOOTH)
+                print("iou of validation : ", iou)
+
             for step, (imgs, masks) in enumerate(self.data_loader):
 
                 # augmentation
-                aug_seq_det = aug_seq.to_deterministic()
-
-                imgs = aug_seq_det.augment_images(imgs)
-                masks = aug_seq_det.augment_images(masks, hooks=hooks_binmasks)
+               # imgs = imgs.flatten()
+                #aug_seq_det = aug_seq.to_deterministic()
+               # imgs = aug_seq_det.augment_images(imgs)
+               # masks = aug_seq_det.augment_images(masks.flateen(), hooks=hooks_binmasks)
 
                 img, mask = imgs.to(self.device), masks.to(self.device)
                 pred = self.net(img)
                 # pred.shape (N, 2, 224, 224)
                 # mask.shape (N, 1, 224, 224)
+
                 self.net.zero_grad()
                 loss = HairMatteLoss(img, mask, pred, 0.5).total_loss
                 loss.backward()
@@ -173,8 +207,7 @@ class Trainer(object):
                                % (self.checkpoint_dir, epoch, step))
                     print("[*] Saved checkpoint")
 
-                # validation
-                if step % self.validation_step ==0:
+
 
 
 
