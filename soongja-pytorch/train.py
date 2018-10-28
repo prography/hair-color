@@ -1,13 +1,14 @@
 import os
 import time
-import numpy as np
 from glob import glob
 
-import matplotlib.pyplot as plt
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torchvision.transforms as transforms
 from model import MobileHairNet
 
 
@@ -23,53 +24,64 @@ def weights_init(m):
 
 
 class Trainer(object):
-    def __init__(self, config, dataloader):
+    def __init__(self, config, train_loader, test_loader):
         self.config = config
-        self.dataloader = dataloader
-        self.num_steps = len(self.dataloader)
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.num_steps = len(self.train_loader)
 
+        self.image_size = config.image_size
         self.num_classes = config.num_classes
+        self.grad_loss_lambda = config.grad_loss_lambda
+        self.batch_size = config.batch_size
         self.epoch = config.epoch
         self.decay_epoch = config.decay_epoch
         self.lr = config.lr
+
         self.sample_step = config.sample_step
         self.checkpoint_step = config.checkpoint_step
-        self.checkpoint_dir = config.checkpoint_dir
+        self.ckpt_max_to_keep =config.ckpt_max_to_keep
+        self.prefix = config.prefix
+        self.data_dir = config.data_dir
+        self.test_data_dir = config.test_data_dir
         self.sample_dir = config.sample_dir
+        self.checkpoint_dir = config.checkpoint_dir
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.build_model()
 
     def build_model(self):
-        self.net = MobileHairNet()
+        self.net = MobileHairNet().to(self.device)
         self.net.apply(weights_init)
-        self.net.to(self.device)
 
-        if self.config.checkpoint_dir != '':
-            self.load_model()
-
-    def load_model(self):
-        print("[*] Load models from {}...".format(self.checkpoint_dir))
-
-        paths = glob(os.path.join(self.checkpoint_dir, 'MobileHairNet*.pth'))
-        paths.sort()
+        # Load checkpoints
+        print("[*] Load models from {}...".format(os.path.join(self.checkpoint_dir, self.model_dir())))
+        paths = glob(os.path.join(self.checkpoint_dir, self.model_dir(), '*.pth'))
 
         if len(paths) == 0:
-            print("[!] No checkpoint found in {}...".format(self.checkpoint_dir))
-            return
+            print("[!] No checkpoint found in {}...".format(os.path.join(self.checkpoint_dir, self.model_dir())))
+            self.counter = 0
 
-        filename = paths[-1]
+        else:
+            paths.sort()
 
-        self.net.load_state_dict(torch.load(filename, map_location=self.device))
+            steps = [int(os.path.basename(path.split('-')[0])) for path in paths]
+            self.counter = int(max(steps))
 
-        print("[*] Model loaded: {}".format(filename))
+            filename = self.checkpoint_name(self.counter, 'MobileHairNet')
+
+            self.net.load_state_dict(torch.load(filename, map_location=self.device))
+
+            print("[*] Model loaded: {}".format(filename))
 
     def train(self):
-        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
-        # CrossEntropyLoss사용할 때는 input이 (N, C), target이 (N) 형태여야함
+        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device) # input이 (N, C), target이 (N) 형태여야함
 
         optimizer = optim.Adadelta(self.net.parameters(), lr=self.lr, rho=0.95, eps=1e-07)
+
+        counter = self.counter
+        self.checkpoints_to_keep = []
 
         start_time = time.time()
         for epoch in range(self.epoch):
@@ -78,57 +90,69 @@ class Trainer(object):
                 optimizer.param_groups[0]['lr'] = self.lr / 10
                 print('learning rate decayed')
 
-            for step, (img, mask) in enumerate(self.dataloader):
-                img, mask = img.to(self.device), mask.to(self.device)
-                pred = self.net(img)
-                # pred.shape (N, 2, 224, 224)
-                # mask.shape (N, 1, 224, 224)
+            for step, (imgs, masks) in enumerate(self.train_loader):
+                imgs, masks = imgs.to(self.device), masks.to(self.device)
+                preds = self.net(imgs)
+                # imgs.shape (N, 3, 224, 224)
+                # masks.shape (N, 1, 224, 224)
+                # preds.shape (N, 2, 224, 224)
 
-                pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
-                mask_flat = mask.squeeze(1).view(-1).long()
-                # pred_flat.shape (N*224*224, 2)
-                # mask_flat.shape (N*224*224, 1)
+                preds_flat = preds.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+                masks_flat = masks.squeeze(1).view(-1).long()
+                # preds_flat.shape (N*224*224, 2)
+                # masks_flat.shape (N*224*224, 1)
 
                 self.net.zero_grad()
-                loss = CrossEntropyLoss(pred_flat, mask_flat)
+                loss = CrossEntropyLoss(preds_flat, masks_flat)
                 loss.backward()
                 optimizer.step()
 
+                counter += 1
                 step_end_time = time.time()
                 print('[%d/%d][%d/%d] - time_passed: %.2f, CrossEntropyLoss: %.2f'
                       % (epoch, self.epoch, step, self.num_steps, step_end_time - start_time, loss))
 
                 # save sample images
                 if step % self.sample_step == 0:
-                    self.save_sample_imgs(img[0], mask[0], torch.argmax(pred[0], 0), self.sample_dir, epoch, step)
-                    print('[*] Saved sample images')
+                    for num, (imgs, masks) in enumerate(self.test_loader):
+                        imgs, masks = imgs.to(self.device), masks.to(self.device)
+                        preds = self.net(imgs)
+
+                        inverse_normalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5],
+                                                             std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
+
+                        imgs = inverse_normalize(imgs[0]).permute(1, 2, 0).detach().cpu().numpy()[:,:,::-1] * 255
+                        masks = masks[0].repeat(3, 1, 1).permute(1, 2, 0).detach().cpu().numpy() * 255
+                        preds = torch.argmax(preds[0], 0).unsqueeze(2).repeat(1, 1, 3).detach().cpu().numpy() * 255
+
+                        if not os.path.exists(os.path.join(self.sample_dir, self.model_dir())):
+                            os.makedirs(os.path.join(self.sample_dir, self.model_dir()))
+
+                        samples = np.hstack((imgs, masks, preds))
+                        cv2.imwrite('{}/{}/sample_{}-{}.png'.format(self.sample_dir, self.model_dir(), num, counter), samples)
+                    print('Saved images')
 
                 # save checkpoints
                 if step % self.checkpoint_step == 0:
-                    torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d_step-%d.pth'
-                               % (self.checkpoint_dir, epoch, step))
-                    print("[*] Saved checkpoint")
+                    if not os.path.exists(os.path.join(self.checkpoint_dir, self.model_dir())):
+                        os.makedirs(os.path.join(self.checkpoint_dir, self.model_dir()))
 
-    def save_sample_imgs(self, real_img, real_mask, prediction, save_dir, epoch, step):
-        data = [real_img, real_mask, prediction]
-        names = ["Image", "Mask", "Prediction"]
+                    self.save_checkpoint(counter, self.ckpt_max_to_keep)
+                    print("Saved checkpoint")
 
-        fig = plt.figure()
-        for i, d in enumerate(data):
-            d = d.squeeze()
-            im = d.data.cpu().numpy()
+    def model_dir(self):
+        return "{}_{}_{}_{}".format(
+            self.prefix, self.batch_size,
+            self.image_size, self.image_size)
 
-            if i > 0:
-                im = np.expand_dims(im, axis=0)
-                im = np.concatenate((im, im, im), axis=0)
+    def checkpoint_name(self, counter, name):
+        return '{}/{}/{}-{}.pth'.format(self.checkpoint_dir, self.model_dir(), counter, name)
 
-            im = (im.transpose(1, 2, 0) + 1) / 2
+    def save_checkpoint(self, counter, max_to_keep):
+        torch.save(self.net.state_dict(), self.checkpoint_name(counter, 'MobileHairNet'))
 
-            f = fig.add_subplot(1, 3, i + 1)
-            f.imshow(im)
-            f.set_title(names[i])
-            f.set_xticks([])
-            f.set_yticks([])
+        self.checkpoints_to_keep.append(self.checkpoint_name(counter, 'MobileHairNet'))
 
-        p = os.path.join(save_dir, "epoch-%s_step-%s.png" % (epoch, step))
-        plt.savefig(p)
+        if len(self.checkpoints_to_keep) > max_to_keep:
+            os.remove(self.checkpoints_to_keep[0])
+            del self.checkpoints_to_keep[0]
