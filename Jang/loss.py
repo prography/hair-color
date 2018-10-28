@@ -1,12 +1,8 @@
-from skimage.io import imread, imsave
 from skimage.color import rgb2gray
 from skimage import filters
 from sklearn.preprocessing import normalize
-import torch.nn as nn
 import torch
 from config import get_config
-import os
-import numpy as np
 config = get_config()
 from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F

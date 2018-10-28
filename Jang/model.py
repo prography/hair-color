@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from config import get_config
-import torch.nn.functional as F
 
 config = get_config()
 

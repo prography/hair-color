@@ -2,9 +2,7 @@ import torch
 from model import MobileHairNet
 import os
 from glob import glob
-from torch.nn import CrossEntropyLoss
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 def weights_init(m):

@@ -3,7 +3,6 @@ from loss import HairMatLoss
 import os
 from glob import glob
 import torch
-import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -82,7 +81,7 @@ class Trainer:
                     self.save_sample_imgs(image[0], mask[0], torch.argmax(pred[0], 0), self.sample_dir, epoch, step)
                     print('[*] Saved sample images')
 
-        torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
+            torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
 
     def save_sample_imgs(self, real_img, real_mask, prediction, save_dir, epoch, step):
         data = [real_img, real_mask, prediction]

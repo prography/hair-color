@@ -6,7 +6,6 @@ import torch.backends.cudnn as cudnn
 from config import get_config
 from dataloader import get_loader
 from train import Trainer
-from test import Tester
 
 
 def main(config):
