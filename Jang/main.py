@@ -29,9 +29,7 @@ def main(config):
                             shuffle=True, num_workers=int(config.workers))
 
     trainer = Trainer(config, data_loader)
-    tester = Tester(config, data_loader)
-#    trainer.train()
-    tester.test()
+    trainer.train()
 
 if __name__ == "__main__":
     config = get_config()

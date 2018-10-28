@@ -1,4 +1,5 @@
 from model import MobileHairNet
+from loss import HairMatLoss
 import os
 from glob import glob
 import torch
@@ -54,21 +55,23 @@ class Trainer:
         print(" * Load Model from %s: " % str(self.model_path), str(model[-1]))
 
     def train(self):
-        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
+#        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
+        MobileHairNetLoss = HairMatLoss().to(self.device)
         optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, eps=1e-7)
 
         for epoch in range(self.epoch):
             for step, (image, mask) in enumerate(self.data_loader):
                 image = image.to(self.device)
                 mask = mask.to(self.device)
-                criterion = self.net(image)
+                pred = self.net(image)
 
-                criterion_flat = criterion.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
-                mask_flat = mask.squeeze(1).view(-1).long()
+#                pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
+#                mask_flat = mask.squeeze(1).view(-1).long()
 
 
                 self.net.zero_grad()
-                loss = CrossEntropyLoss(criterion_flat, mask_flat)
+                loss = MobileHairNetLoss(pred, image, mask)
+#                loss = CrossEntropyLoss(pred_flat, mask_flat)
                 loss.backward()
                 optimizer.step()
 
@@ -76,7 +79,7 @@ class Trainer:
 
                 # save sample images
                 if step % self.sample_step == 0:
-                    self.save_sample_imgs(image[0], mask[0], torch.argmax(criterion[0], 0), self.sample_dir, epoch, step)
+                    self.save_sample_imgs(image[0], mask[0], torch.argmax(pred[0], 0), self.sample_dir, epoch, step)
                     print('[*] Saved sample images')
 
         torch.save(self.net.state_dict(), '%s/MobileHairNet_epoch-%d.pth' % (self.checkpoint_dir, epoch))
