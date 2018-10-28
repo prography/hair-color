@@ -9,9 +9,6 @@ from train import Trainer
 
 
 def main(config):
-    os.makedirs(config.sample_dir, exist_ok=True)
-    os.makedirs(config.checkpoint_dir, exist_ok=True)
-
     config.manual_seed = random.randint(1, 10000)
     print("Random Seed: ", config.manual_seed)
     random.seed(config.manual_seed)
@@ -22,11 +19,15 @@ def main(config):
 
     cudnn.benchmark = True
 
-    dataloader = get_loader(config.data_dir, config.batch_size, config.image_size,
+    train_loader = get_loader(config.data_dir, config.image_size, config.batch_size,
                             shuffle=True, num_workers=int(config.workers))
 
-    trainer = Trainer(config, dataloader)
+    test_loader = get_loader(config.test_data_dir, config.image_size, batch_size=1,
+                             shuffle=False, num_workers=int(config.workers))
+
+    trainer = Trainer(config, train_loader, test_loader)
     trainer.train()
+
 
 if __name__ == "__main__":
     config = get_config()
