@@ -39,7 +39,7 @@ def upsample_only(inputs, scope):
         return tf.image.resize_nearest_neighbor(inputs, size=[inputs.get_shape()[1] * 2, inputs.get_shape()[2] * 2])
 
 
-def depthwise_seperable_conv2d(inputs, scope, num_filters, downsample=False):
+def depthwise_separable_conv2d(inputs, scope, num_filters, downsample=False):
 
     strides = 2 if downsample else 1
 
@@ -53,7 +53,7 @@ def depthwise_seperable_conv2d(inputs, scope, num_filters, downsample=False):
         return tf.nn.relu(pw_bn)
 
 
-def inv_depthwise_seperable_conv2d(inputs, scope, num_filters):
+def inv_depthwise_separable_conv2d(inputs, scope, num_filters):
     with tf.variable_scope(scope):
         dw_conv = depthwise_conv2d(inputs, "inv_dw_conv")
         pw_conv = conv2d(dw_conv, "inv_pw_conv", num_filters)
