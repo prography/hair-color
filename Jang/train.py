@@ -70,7 +70,7 @@ class Trainer:
                 optimizer.step()
                 iou = iou_loss(pred, mask)
 
-                print("epoch: [%d/%d] | image: [%d/%d] | loss: %.2f | IOU : %.2f" % (epoch, self.epoch, step, self.image_len, loss, iou))
+                print("epoch: [%d/%d] | image: [%d/%d] | loss: %.4f | IOU: %.4f" % (epoch, self.epoch, step, self.image_len, loss, iou))
 
                 # save sample images
                 if step % self.sample_step == 0:
