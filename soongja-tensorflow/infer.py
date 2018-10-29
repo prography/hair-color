@@ -13,6 +13,7 @@ flags.DEFINE_string("save_dir", "test", "Directory to save test outputs")
 
 FLAGS = flags.FLAGS
 
+
 def main(_):
     net = Network(FLAGS.input_height, FLAGS.input_width)
 
@@ -30,19 +31,22 @@ def main(_):
         # read image
         img = cv2.resize(cv2.imread(FLAGS.test_image), (FLAGS.input_height, FLAGS.input_width))
 
-        _input = np.array(img, dtype=np.float32)[:, :, ::-1]
-        # _inpu = np.multiply(_input, 1.0 / 255)
-        # _input = sess.run(tf.image.per_image_standardization(_input))
+        _input = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         _input = np.expand_dims(_input, axis=0)
+        # _input이 uint8이네 ㄷㄷ
 
         out = sess.run(net.preds, feed_dict={net.inputs: _input})
         out = out[0] * 255
+
+        if not os.path.exists(FLAGS.save_dir):
+            os.makedirs(FLAGS.save_dir)
 
         cv2.imshow('test input', img)
         cv2.imshow('test output', out)
         cv2.imwrite(os.path.join(FLAGS.save_dir, FLAGS.test_image), out)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
 
 if __name__ == '__main__':
     tf.app.run()
