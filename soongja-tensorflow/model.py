@@ -1,6 +1,5 @@
 import os
 import time
-import cv2
 import numpy as np
 import tensorflow as tf
 import imgaug as ia
@@ -13,18 +12,21 @@ from utils import draw_results
 class Network(object):
     def __init__(self, input_height, input_width):
         self.inputs = tf.placeholder(tf.float32, [None, input_height, input_width, 3], name='inputs')
-        self.targets = tf.placeholder(tf.float32, [None, input_height, input_width, 1], name='targets')
+        self.inputs_std = tf.stack(tf.map_fn(tf.image.per_image_standardization, self.inputs), name='inputs_std')
+        self.targets = tf.placeholder(tf.int32, [None, input_height, input_width, 1], name='targets')
 
-        self.logits = tf.identity(self.feedforward(self.inputs), name='logits')
+        self.logits = tf.identity(self.feedforward(self.inputs_std), name='logits')
         self.preds = tf.cast(tf.expand_dims(tf.argmax(self.logits, axis=3), 3), tf.float32, name='preds')
         #                        dtype      scale            shape
-        # self.inputs:         float32        0~1    (N,224,224,3)
-        # self.targets:        float32        0,1    (N,224,224,1)
-        # self.logits:         float32        0~1    (N,224,224,2)
+        # self.inputs:         float32      0~255    (N,224,224,3)
+        # self.inputs_std      float32   -std~std    (N,224,224,3)
+        # self.targets:          int32        0,1    (N,224,224,1)
+
+        # self.logits:         float32          -    (N,224,224,2)
         # self.preds:          float32        0,1    (N,224,224,1)
 
         reshaped_preds = tf.reshape(tf.argmax(self.logits, axis=3, output_type=tf.int32), [-1])
-        reshaped_targets = tf.cast(tf.reshape(self.targets, [-1]), tf.int32)
+        reshaped_targets = tf.reshape(self.targets, [-1])
         #                        dtype      scale            shape
         # reshaped_preds:        int32        0,1      (N*224*224)
         # reshaped_targets:      int32        0,1      (N*224*224)
@@ -35,31 +37,31 @@ class Network(object):
         with tf.variable_scope("network"):
             # Encoder blocks
             h0 = conv2d(inputs, "in_conv", 32, 3, 2)
-            h1 = depthwise_seperable_conv2d(h0, "ds_conv1", 64)
-            h2 = depthwise_seperable_conv2d(h1, "ds_conv2", 128, downsample=True)
-            h3 = depthwise_seperable_conv2d(h2, "ds_conv3", 128)
-            h4 = depthwise_seperable_conv2d(h3, "ds_conv4", 256, downsample=True)
-            h5 = depthwise_seperable_conv2d(h4, "ds_conv5", 256)
-            h6 = depthwise_seperable_conv2d(h5, "ds_conv6", 512, downsample=True)
-            h7 = depthwise_seperable_conv2d(h6, "ds_conv7", 512)
-            h8 = depthwise_seperable_conv2d(h7, "ds_conv8", 512)
-            h9 = depthwise_seperable_conv2d(h8, "ds_conv9", 512)
-            h10 = depthwise_seperable_conv2d(h9, "ds_conv10", 512)
-            h11 = depthwise_seperable_conv2d(h10, "ds_conv11", 512)
-            h12 = depthwise_seperable_conv2d(h11, "ds_conv12", 1024, downsample=True)
-            h13 = depthwise_seperable_conv2d(h12, "ds_conv13", 1024)
+            h1 = depthwise_separable_conv2d(h0, "ds_conv1", 64)
+            h2 = depthwise_separable_conv2d(h1, "ds_conv2", 128, downsample=True)
+            h3 = depthwise_separable_conv2d(h2, "ds_conv3", 128)
+            h4 = depthwise_separable_conv2d(h3, "ds_conv4", 256, downsample=True)
+            h5 = depthwise_separable_conv2d(h4, "ds_conv5", 256)
+            h6 = depthwise_separable_conv2d(h5, "ds_conv6", 512, downsample=True)
+            h7 = depthwise_separable_conv2d(h6, "ds_conv7", 512)
+            h8 = depthwise_separable_conv2d(h7, "ds_conv8", 512)
+            h9 = depthwise_separable_conv2d(h8, "ds_conv9", 512)
+            h10 = depthwise_separable_conv2d(h9, "ds_conv10", 512)
+            h11 = depthwise_separable_conv2d(h10, "ds_conv11", 512)
+            h12 = depthwise_separable_conv2d(h11, "ds_conv12", 1024, downsample=True)
+            h13 = depthwise_separable_conv2d(h12, "ds_conv13", 1024)
 
             # Decoder blocks
             h14 = upsample_with_addition(h13, "up1", h11, 1024)
-            h15 = inv_depthwise_seperable_conv2d(h14, "inv_ds_conv1", 64)
+            h15 = inv_depthwise_separable_conv2d(h14, "inv_ds_conv1", 64)
             h16 = upsample_with_addition(h15, "up2", h5, 64)
-            h17 = inv_depthwise_seperable_conv2d(h16, "inv_ds_conv2", 64)
+            h17 = inv_depthwise_separable_conv2d(h16, "inv_ds_conv2", 64)
             h18 = upsample_with_addition(h17, "up3", h3, 64)
-            h19 = inv_depthwise_seperable_conv2d(h18, "inv_ds_conv3", 64)
+            h19 = inv_depthwise_separable_conv2d(h18, "inv_ds_conv3", 64)
             h20 = upsample_with_addition(h19, "up4", h1, 64)
-            h21 = inv_depthwise_seperable_conv2d(h20, "inv_ds_conv4", 64)
+            h21 = inv_depthwise_separable_conv2d(h20, "inv_ds_conv4", 64)
             h22 = upsample_only(h21, "up5")
-            h23 = inv_depthwise_seperable_conv2d(h22, "inv_ds_conv5", 64)
+            h23 = inv_depthwise_separable_conv2d(h22, "inv_ds_conv5", 64)
 
             logits = conv2d(h23, "out_conv", 2, 1, 1)
 
@@ -80,7 +82,7 @@ class MobileHairNet(object):
         self.checkpoint_dir = config.checkpoint_dir
         self.sample_dir = config.sample_dir
         self.data_dir = config.data_dir
-        self.data_name = config.data_name
+        self.prefix = config.prefix
         self.validation_step = config.validation_step
 
         self.build_model()
@@ -90,7 +92,7 @@ class MobileHairNet(object):
 
         """ Loss """
         reshaped_logits = tf.reshape(self.net.logits, [-1, 2])
-        reshaped_targets = tf.cast(tf.reshape(self.net.targets, [-1]), tf.int32)
+        reshaped_targets = tf.reshape(self.net.targets, [-1])
         #                        dtype      scale            shape
         # reshaped_logits:     float32        0~1    (N*224*224,2)
         # reshaped_targets:      int32        0,1      (N*224*224)
@@ -106,6 +108,7 @@ class MobileHairNet(object):
         """ Summary """
         tf.summary.scalar("loss", self.loss_op)
         tf.summary.scalar("IOU", self.net.iou)
+        tf.summary.image("std_input", self.net.inputs_std)
         self.summary_op = tf.summary.merge_all()
 
     def train(self):
@@ -123,18 +126,19 @@ class MobileHairNet(object):
         dataset = Dataset(self.input_height, self.input_width, self.batch_size, self.data_dir)
 
         # imgaug
-        aug_seq = iaa.OneOf([
-            # iaa.Scale((0.3, 1.0), name="Scale"),
-            # iaa.Affine(rotate=(-30, 30), name="Affine"),
-            iaa.Multiply((1.0, 1.5)),
-            # iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
-            # iaa.CoarseDropout((0.05, 0.2), size_percent=(0.05, 0.25), name="CoarseDropout")
-        ])
+        aug_seq = iaa.SomeOf((1, 2),
+            [
+                iaa.OneOf([iaa.Affine(rotate=(-30, 30), name="Rotate"),
+                           iaa.Affine(scale=(0.3, 1.0), name="Scale")]),
+                iaa.OneOf([iaa.Multiply((0.5, 1.5), name="Multiply"),
+                           iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
+                           iaa.CoarseDropout((0.05, 0.2), size_percent=(0.01, 0.1), name="CoarseDropout")])
+            ])
 
         # deactivate certain augmenters for binmasks
         # on binmasks, we only want to execute crop, horizontal flip, and affine transformation
         def activator_binmasks(images, augmenter, parents, default):
-            if augmenter.name in ["GaussianBlur", "CoarseDropout"]:
+            if augmenter.name in ["Multiply", "GaussianBlur", "CoarseDropout"]:
                 return False
             else:
                 return default
@@ -159,6 +163,14 @@ class MobileHairNet(object):
 
             for batch_i in range(dataset.num_batches_in_epoch()):
                 batch_inputs, batch_targets = dataset.next_batch()
+                #                        dtype      scale            shape
+                # batch_inputs:          uint8      0~255    (N,224,224,3)
+                # batch_targets:         uint8      0,255    (N,224,224,1)
+
+                batch_inputs = np.reshape(batch_inputs,
+                                          (self.batch_size, self.input_height, self.input_width, 3))
+                batch_targets = np.reshape(batch_targets,
+                                           (self.batch_size, self.input_height, self.input_width, 1))
 
                 aug_seq_det = aug_seq.to_deterministic()
 
@@ -167,10 +179,10 @@ class MobileHairNet(object):
                 batch_targets = aug_seq_det.augment_images(batch_targets, hooks=hooks_binmasks)
 
                 # per image standardization
-                batch_inputs = tf.map_fn(tf.image.per_image_standardization, batch_inputs)
-                batch_targets = tf.map_fn(tf.image.per_image_standardization, batch_targets)
-                # 이거 numpy array로 바꿔줘야해!
-                feed_dict = {self.net.inputs: batch_inputs, self.net.targets: batch_targets}
+                _batch_inputs = batch_inputs.astype(np.float32)
+                _batch_targets = np.multiply(batch_targets, 1.0 / 255).astype(np.int32)
+
+                feed_dict = {self.net.inputs: _batch_inputs, self.net.targets: _batch_targets}
 
                 _, step_loss = self.sess.run([self.train_op, self.loss_op], feed_dict=feed_dict)
 
@@ -188,31 +200,35 @@ class MobileHairNet(object):
                 # Validation
                 if batch_i % self.validation_step == 0:
                     val_inputs, val_targets = dataset.val_set()
-                    val_inputs = tf.map_fn(tf.image.per_image_standardization, val_inputs)
-                    val_targets = tf.map_fn(tf.image.per_image_standardization, val_targets)
+                    #                        dtype      scale            shape
+                    # val_inputs:            uint8      0~255    (N,224,224,3)
+                    # val_targets:           uint8      0,255    (N,224,224,1)
 
-                    feed_dict = {self.net.inputs: batcg_inputs, self.net.targets: batch_targets}
+                    val_inputs = np.reshape(val_inputs,
+                                            (-1 , self.input_height, self.input_width, 3))
+                    val_targets = np.reshape(val_targets,
+                                            (-1 , self.input_height, self.input_width, 1))
+
+                    _val_inputs = val_inputs.astype(np.float32)
+                    _val_targets = np.multiply(val_targets, 1.0 / 255).astype(np.int32)
+
+                    feed_dict = {self.net.inputs: _val_inputs, self.net.targets: _val_targets}
 
                     self.sess.run(self.net.iou_op, feed_dict=feed_dict)
                     val_iou= self.sess.run(self.net.iou, feed_dict=feed_dict)
 
-                    # matplotlib reconstruction
-                    val_inputs, val_targets, val_logits_a, val_logits_b, val_preds = \
-                    self.sess.run([self.net.inputs,
-                                   tf.squeeze(self.net.targets, axis=3),
-                                   self.net.logits[:,:,:,0],
-                                   self.net.logits[:,:,:,1],
-                                   tf.squeeze(self.net.preds, axis=3)], feed_dict=feed_dict)
+                    # matplotlib
+                    val_preds = self.sess.run(tf.squeeze(self.net.preds, axis=3), feed_dict=feed_dict)
 
-                    draw_results(val_iou, val_inputs, val_targets, val_logits_a, val_logits_b, val_preds,
-                                 epoch_i, batch_i, self.sample_dir, self.model_dir(), num_samples=8)
+                    draw_results(val_iou, val_inputs, np.squeeze(val_targets, axis=3), val_preds,
+                                 epoch_i, batch_i, self.sample_dir, self.model_dir(), num_samples=10)
 
                     print()
                     print("=====================================================================")
-                    print("Validation IOU: %.4f" % val_iou)
                     val_ious.append(val_iou)
-                    print("IOUs in time:", [val_ious[i] for i in range(len(val_ious))])
                     max_iou = max(val_ious)
+                    print("Validation IOU: %.4f" % val_iou)
+                    print("IOUs in time:", val_ious)
                     print("Best IOU: %.4f" % max_iou)
                     if val_iou >= max_iou:
                         self.save(self.checkpoint_dir, counter)
@@ -224,7 +240,7 @@ class MobileHairNet(object):
 
     def model_dir(self):
         return "{}_{}_{}_{}".format(
-            self.data_name, self.batch_size,
+            self.prefix, self.batch_size,
             self.input_height, self.input_width)
 
     def save(self, checkpoint_dir, step):
