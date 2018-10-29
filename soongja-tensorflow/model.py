@@ -124,18 +124,17 @@ class MobileHairNet(object):
 
         # imgaug
         aug_seq = iaa.OneOf([
-            iaa.CropAndPad(percent=(-0.3, 0.3), pad_mode=ia.ALL, name="Crop"),
-            iaa.Scale((0.3, 1.0), name="Scale"),
-            iaa.Affine(rotate=(-30, 30), name="Affine"),
-            iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
-            iaa.Dropout(0.02, name="Dropout"),
-            iaa.AdditiveGaussianNoise(scale=0.05*255, per_channel=0.5, name="MyLittleNoise"),
+            # iaa.Scale((0.3, 1.0), name="Scale"),
+            # iaa.Affine(rotate=(-30, 30), name="Affine"),
+            iaa.Multiply((1.0, 1.5)),
+            # iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
+            # iaa.CoarseDropout((0.05, 0.2), size_percent=(0.05, 0.25), name="CoarseDropout")
         ])
 
         # deactivate certain augmenters for binmasks
         # on binmasks, we only want to execute crop, horizontal flip, and affine transformation
         def activator_binmasks(images, augmenter, parents, default):
-            if augmenter.name in ["GaussianBlur", "Dropout", "MyLittleNoise"]:
+            if augmenter.name in ["GaussianBlur", "CoarseDropout"]:
                 return False
             else:
                 return default
@@ -170,7 +169,7 @@ class MobileHairNet(object):
                 # per image standardization
                 batch_inputs = tf.map_fn(tf.image.per_image_standardization, batch_inputs)
                 batch_targets = tf.map_fn(tf.image.per_image_standardization, batch_targets)
-
+                # 이거 numpy array로 바꿔줘야해!
                 feed_dict = {self.net.inputs: batch_inputs, self.net.targets: batch_targets}
 
                 _, step_loss = self.sess.run([self.train_op, self.loss_op], feed_dict=feed_dict)
@@ -192,7 +191,7 @@ class MobileHairNet(object):
                     val_inputs = tf.map_fn(tf.image.per_image_standardization, val_inputs)
                     val_targets = tf.map_fn(tf.image.per_image_standardization, val_targets)
 
-                    feed_dict = {self.net.inputs: val_inputs, self.net.targets: val_targets}
+                    feed_dict = {self.net.inputs: batcg_inputs, self.net.targets: batch_targets}
 
                     self.sess.run(self.net.iou_op, feed_dict=feed_dict)
                     val_iou= self.sess.run(self.net.iou, feed_dict=feed_dict)
