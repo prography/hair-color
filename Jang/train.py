@@ -5,6 +5,7 @@ from glob import glob
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+from loss import iou_loss
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -54,7 +55,6 @@ class Trainer:
         print(" * Load Model from %s: " % str(self.model_path), str(model[-1]))
 
     def train(self):
-#        CrossEntropyLoss = nn.CrossEntropyLoss().to(self.device)
         MobileHairNetLoss = HairMatLoss().to(self.device)
         optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, eps=1e-7)
 
@@ -64,17 +64,13 @@ class Trainer:
                 mask = mask.to(self.device)
                 pred = self.net(image)
 
-#                pred_flat = pred.permute(0, 2, 3, 1).contiguous().view(-1, self.num_classes)
-#                mask_flat = mask.squeeze(1).view(-1).long()
-
-
                 self.net.zero_grad()
                 loss = MobileHairNetLoss(pred, image, mask)
-#                loss = CrossEntropyLoss(pred_flat, mask_flat)
                 loss.backward()
                 optimizer.step()
+                iou = iou_loss(pred, mask)
 
-                print("epoch: [%d/%d] | image: [%d/%d] | loss: %.2f" % (epoch, self.epoch, step, self.image_len, loss))
+                print("epoch: [%d/%d] | image: [%d/%d] | loss: %.2f | IOU : %.2f" % (epoch, self.epoch, step, self.image_len, loss, iou))
 
                 # save sample images
                 if step % self.sample_step == 0:
