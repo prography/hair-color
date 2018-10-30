@@ -264,7 +264,7 @@ class MobileHairNet(object):
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
             self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
             counter = int(next(re.finditer("(\d+)(?!.*\d)", ckpt_name)).group(0))
-            print(" [*] Success to read {}".format(ckpt_name))
+            print(" [*] Success to read {}".format(os.path.join(checkpoint_dir, ckpt_name)))
             return True, counter
         else:
             print(" [*] Failed to find a checkpoint")
