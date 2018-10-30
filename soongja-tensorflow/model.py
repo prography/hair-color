@@ -1,11 +1,12 @@
 import os
 import time
+
+import imgaug as ia
 import numpy as np
 import tensorflow as tf
-import imgaug as ia
+from dataloader import Dataset
 from imgaug import augmenters as iaa
 from ops import *
-from dataloader import Dataset
 from utils import draw_results
 
 
@@ -221,15 +222,15 @@ class MobileHairNet(object):
                     val_preds = self.sess.run(tf.squeeze(self.net.preds, axis=3), feed_dict=feed_dict)
 
                     draw_results(val_iou, val_inputs, np.squeeze(val_targets, axis=3), val_preds,
-                                 epoch_i, batch_i, self.sample_dir, self.model_dir(), num_samples=10)
+                                 counter, self.sample_dir, self.model_dir(), num_samples=10)
 
                     print()
                     print("=====================================================================")
                     val_ious.append(val_iou)
                     max_iou = max(val_ious)
-                    print("Validation IOU: %.4f" % val_iou)
                     print("IOUs in time:", val_ious)
                     print("Best IOU: %.4f" % max_iou)
+                    print("Validation IOU: %.4f" % val_iou)
                     if val_iou >= max_iou:
                         self.save(self.checkpoint_dir, counter)
                         print("Validation IOU exceeded the current best. Saved checkpoints!!!")
