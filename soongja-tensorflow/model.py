@@ -34,6 +34,9 @@ class Network(object):
         self.iou, self.iou_op = tf.metrics.mean_iou(labels=reshaped_targets, predictions=reshaped_preds,
                                                     num_classes=2, name='IOU')
 
+        running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope="IOU")
+        self.running_vars_initializer = tf.variables_initializer(var_list=running_vars)
+
     def feedforward(self, inputs):
         with tf.variable_scope("network"):
             # Encoder blocks
@@ -115,7 +118,6 @@ class MobileHairNet(object):
     def train(self):
         # initialize
         self.sess.run(tf.global_variables_initializer())
-        self.sess.run(tf.local_variables_initializer())
 
         # 여기서 저장되는 그래프는 껍데기일 뿐. freeze graph를 통해 체크포인트와 결합해야 한다.
         tf.train.write_graph(self.sess.graph_def, logdir=os.path.join(self.graph_dir, self.model_dir()),
@@ -146,7 +148,7 @@ class MobileHairNet(object):
         hooks_binmasks = ia.HooksImages(activator=activator_binmasks)
 
         # load checkpoint
-        counter = 1
+        counter = 0
         could_load, checkpoint_counter = self.load(self.checkpoint_dir)
         if could_load:
             counter = checkpoint_counter
@@ -163,6 +165,8 @@ class MobileHairNet(object):
             dataset.reset_batch_pointer()
 
             for batch_i in range(dataset.num_batches_in_epoch()):
+                self.sess.run(self.net.running_vars_initializer)
+
                 batch_inputs, batch_targets = dataset.next_batch()
                 #                        dtype      scale            shape
                 # batch_inputs:          uint8      0~255    (N,224,224,3)
@@ -193,13 +197,15 @@ class MobileHairNet(object):
                 step_summary = self.sess.run(self.summary_op, feed_dict=feed_dict)
 
                 counter += 1
-                print("Epoch: [%2d/%2d] [%4d/%4d] time: %4.4f, Loss: %.4f, IOU: %.4f"
+                print("Epoch: [%2d/%2d] [%4d/%4d] time: %5.2f, Loss: %.5f, IOU: %.5f"
                       % (epoch_i, self.epoch, batch_i, dataset.num_batches_in_epoch(),
                          time.time() - start_time, step_loss, step_iou))
                 writer.add_summary(step_summary, global_step=counter)
 
                 # Validation
                 if batch_i % self.validation_step == 0:
+                    self.sess.run(self.net.running_vars_initializer)
+
                     val_inputs, val_targets = dataset.val_set()
                     #                        dtype      scale            shape
                     # val_inputs:            uint8      0~255    (N,224,224,3)
