@@ -12,6 +12,7 @@ import os
 import torch.utils.data
 import torchvision.transforms as transforms
 from PIL import Image
+from imgaug import augmenters as iaa
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -39,7 +40,6 @@ class Dataset(torch.utils.data.Dataset):
         for p in self.objects_path:
             objects.append(Image.open(os.path.join( p, self.image_name[index])))
 
-
         transform_image = transforms.Compose([
             transforms.CenterCrop(min(image.size[0], image.size[1])),
             transforms.Resize(self.image_size),
@@ -55,6 +55,12 @@ class Dataset(torch.utils.data.Dataset):
                 transforms.ToTensor()
             ])(objects[num]))
 
+        seq = iaa.Sequential([
+            iaa.Crop(px=(0, 16)),  # crop images from each side by 0 to 16px (randomly chosen)
+            iaa.Fliplr(0.5),  # horizontally flip 50% of the images
+            iaa.GaussianBlur(sigma=(0, 3.0))  # blur images with a sigma of 0 to 3.0
+        ])
+        
         return transform_image, transform_object[0] #for hair segmentation
 
     def __len__(self):

@@ -36,6 +36,8 @@ if __name__ == "__main__":
     net = MobileHairNet().to(device)
     net.load_state_dict(torch.load(os.path.join(config.checkpoint_dir, pretrained), map_location=device))
     cam = cv2.VideoCapture(0)
+    cam.set(3, 224)
+    cam.set(4, 224)
     if not cam.isOpened():
         raise Exception("webcam is not detected")
 
