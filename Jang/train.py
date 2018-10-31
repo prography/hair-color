@@ -6,6 +6,8 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from loss import iou_loss
+from imgaug import augmenters as iaa
+import imgaug as ia
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -38,6 +40,17 @@ class Trainer:
         self.net.to(self.device)
         self.load_model()
 
+    def image_aug(self, image, mask):
+
+        seq = iaa.Sequential([
+            iaa.Affine(rotate=(-90, 90), scale=(0.3, 2.0), translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}, shear=(-5, 5)),
+        ])
+
+        seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
+        image_aug = seq_det.augment_images(np.transpose(image.cpu().numpy(), (0, 2, 3, 1)))
+        mask_aug = seq_det.augment_images(np.transpose(mask.cpu().numpy(), (0, 2, 3, 1)))
+
+        return torch.from_numpy(np.transpose(image_aug, (0, 3, 1, 2))).to(self.device), torch.from_numpy(np.transpose(mask_aug, (0, 3, 1, 2))).to(self.device)
 
     def load_model(self):
         print(" * Load checkpoint in ", str(self.model_path))
@@ -62,6 +75,7 @@ class Trainer:
             for step, (image, mask) in enumerate(self.data_loader):
                 image = image.to(self.device)
                 mask = mask.to(self.device)
+                image, mask = self.image_aug(image, mask)
                 pred = self.net(image)
 
                 self.net.zero_grad()
