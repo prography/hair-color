@@ -21,7 +21,7 @@ def get_mask(image, net, size = 224):
 
     return mask_cv2
 
-def alpha_image(image, mask, alpha = 0.5):
+def alpha_image(image, mask, alpha = 0.1):
     color = np.zeros((mask.shape[0], mask.shape[1], 3))
     color[np.where(mask != 0)] = [0, 130, 255]
     alpha_hand = ((1 - alpha) * image + alpha * color).astype(np.uint8)
@@ -36,8 +36,6 @@ if __name__ == "__main__":
     net = MobileHairNet().to(device)
     net.load_state_dict(torch.load(os.path.join(config.checkpoint_dir, pretrained), map_location=device))
     cam = cv2.VideoCapture(0)
-    cam.set(3, 224)
-    cam.set(4, 224)
     if not cam.isOpened():
         raise Exception("webcam is not detected")
 
