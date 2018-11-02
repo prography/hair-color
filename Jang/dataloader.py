@@ -12,7 +12,9 @@ import os
 import torch.utils.data
 import torchvision.transforms as transforms
 from PIL import Image
-
+from imgaug import augmenters as iaa
+import imgaug as ia
+import numpy as np
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_folder, image_size):
         self.data_folder = data_folder
@@ -31,12 +33,36 @@ class Dataset(torch.utils.data.Dataset):
 
         self.image_size = image_size
 
+    def activator_binmasks(images, image, augmenter, parents, default):
+        if augmenter.name in ["Multiply", "GaussianBlur", "CoarseDropout"]:
+            return False
+        else:
+            return default
+
+    def image_aug(self, image, mask):
+        hooks_binmasks = ia.HooksImages(activator=self.activator_binmasks)
+        seq = iaa.SomeOf((1, 2),
+                         [
+                             iaa.OneOf([iaa.Affine(rotate=(-30, 30), name="Rotate"),
+                                        iaa.Affine(scale=(0.3, 1.3), name="Scale")]),
+                             iaa.OneOf([iaa.Multiply((0.5, 1.5), name="Multiply"),
+                                        iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
+                                        iaa.CoarseDropout((0.05, 0.2), size_percent=(0.01, 0.1),
+                                                          name="CoarseDropout")])
+                         ])
+
+        seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
+        image_aug = np.squeeze(seq_det.augment_images(np.expand_dims(np.array(image), axis=0)), axis=0)
+        mask_aug = np.squeeze(seq_det.augment_images((np.expand_dims(np.array(mask), axis=0)), hooks=hooks_binmasks), axis=0)
+
+        return Image.fromarray(image_aug), Image.fromarray(mask_aug)
 
     def __getitem__(self, index):
         image = Image.open(os.path.join(self.data_folder, 'images', self.image_name[index])).convert('RGB')
-        objects = []
-        for p in self.objects_path:
-            objects.append(Image.open(os.path.join( p, self.image_name[index])))
+        mask = Image.open(os.path.join(self.data_folder, 'masks', self.image_name[index]))
+
+        image, mask = self.image_aug(image, mask)
+
 
         transform_image = transforms.Compose([
             transforms.CenterCrop(min(image.size[0], image.size[1])),
@@ -45,16 +71,14 @@ class Dataset(torch.utils.data.Dataset):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])(image)
 
-        transform_object = []
-        for num,_ in enumerate(self.objects_path):
-            transform_object.append(transforms.Compose([
-                transforms.CenterCrop(min(image.size[0], image.size[1])),
-                transforms.Resize(self.image_size),
-                transforms.ToTensor()
-            ])(objects[num]))
+        transform_mask = (transforms.Compose([
+            transforms.CenterCrop(min(image.size[0], image.size[1])),
+            transforms.Resize(self.image_size),
+            transforms.ToTensor()
+        ])(mask))
 
 
-        return transform_image, transform_object[0] #for hair segmentation
+        return transform_image, transform_mask #for hair segmentation
 
     def __len__(self):
         return len( self.image_name)

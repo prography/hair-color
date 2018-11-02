@@ -6,8 +6,6 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from loss import iou_loss
-from imgaug import augmenters as iaa
-import imgaug as ia
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -40,29 +38,6 @@ class Trainer:
         self.net.to(self.device)
         self.load_model()
 
-    def activator_binmasks(images, images1, augmenter, parents, default):
-        if augmenter.name in ["Multiply", "GaussianBlur", "CoarseDropout"]:
-            return False
-        else:
-            return default
-
-    def image_aug(self, image, mask):
-        hooks_binmasks = ia.HooksImages(activator=self.activator_binmasks)
-        seq = iaa.SomeOf((1, 2),
-            [
-                iaa.OneOf([iaa.Affine(rotate=(-30, 30), name="Rotate"),
-                           iaa.Affine(scale=(0.3, 1.3), name="Scale")]),
-                iaa.OneOf([iaa.Multiply((0.5, 1.5), name="Multiply"),
-                           iaa.GaussianBlur((0, 3.0), name="GaussianBlur"),
-                           iaa.CoarseDropout((0.05, 0.2), size_percent=(0.01, 0.1), name="CoarseDropout")])
-            ])
-
-        seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-        image_aug = seq_det.augment_images(np.transpose(image.cpu().numpy(), (0, 2, 3, 1)))
-        mask_aug = seq_det.augment_images(np.transpose(mask.cpu().numpy(), (0, 2, 3, 1)), hooks=hooks_binmasks)
-
-        return torch.from_numpy(np.transpose(image_aug, (0, 3, 1, 2))).to(self.device), torch.from_numpy(np.transpose(mask_aug, (0, 3, 1, 2))).to(self.device)
-
     def load_model(self):
         print(" * Load checkpoint in ", str(self.model_path))
         if not os.path.exists(self.model_path):
@@ -86,7 +61,6 @@ class Trainer:
             for step, (image, mask) in enumerate(self.data_loader):
                 image = image.to(self.device)
                 mask = mask.to(self.device)
-                image, mask = self.image_aug(image, mask)
                 pred = self.net(image)
 
                 self.net.zero_grad()
